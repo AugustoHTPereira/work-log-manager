@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using WorkLogManager.Application.Common;
 
@@ -42,6 +43,12 @@ public class ExceptionHandlingMiddleware
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             var message = string.Join(" ", exception.Errors.Select(e => e.ErrorMessage));
             await context.Response.WriteAsJsonAsync(new { message });
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogInformation(exception, "Invalid JSON payload.");
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsJsonAsync(new { message = "Invalid request payload." });
         }
     }
 }

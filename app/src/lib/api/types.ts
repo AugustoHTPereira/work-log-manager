@@ -2,7 +2,7 @@
  * Shared types mirroring the back-end API DTOs (WorkLogManager.Api.Dtos.*).
  */
 
-export type WorkLogType = "Absence" | "Overtime"
+export type WorkLogType = "Absence" | "Overtime" | "RegularAttendance" | "Break"
 
 export interface EmployeeSummary {
   id: string
@@ -54,4 +54,28 @@ export interface SystemSettings {
 
 export interface UpdateSystemSettingsPayload {
   defaultDailyWorkHours: number
+}
+
+export interface CloseMonthPayload {
+  month: number
+  year: number
+}
+
+/**
+ * Counts business days processed (generated vs. skipped), not raw work log rows - same
+ * semantics as the back-end `EmployeeWorkLogGenerationSummary`.
+ */
+export interface EmployeeWorkLogGenerationSummary {
+  employeeId: string
+  employeeName: string
+  generatedCount: number
+  skippedCount: number
+}
+
+export interface MonthClosingResult {
+  id: string
+  month: number
+  year: number
+  createdAtUtc: string
+  summaries: EmployeeWorkLogGenerationSummary[]
 }

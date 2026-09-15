@@ -6,5 +6,7 @@ namespace WorkLogManager.Application.Entities;
 public enum WorkLogType
 {
     Absence,
-    Overtime
+    Overtime,
+    RegularAttendance,
+    Break
 }

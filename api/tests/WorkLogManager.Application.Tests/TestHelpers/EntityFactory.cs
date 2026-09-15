@@ -64,4 +64,17 @@ public static class EntityFactory
             UpdatedAtUtc = DateTimeOffset.UtcNow,
         };
     }
+
+    public static MonthClosing CreateMonthClosing(int month = 1, int year = 2026, Guid? id = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new MonthClosing
+        {
+            Id = id ?? Guid.NewGuid(),
+            Month = month,
+            Year = year,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+        };
+    }
 }

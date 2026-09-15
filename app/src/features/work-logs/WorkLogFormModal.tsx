@@ -172,9 +172,17 @@ export function WorkLogFormModal({ open, onOpenChange, employeeId, workLog }: Wo
         setDurationError(null)
 
         if (startDate) {
-          const newEnd = new Date(new Date(startDate).getTime() + durationSeconds * 1000)
-          setEndDate(toDatetimeLocalValue(newEnd.toISOString()))
+          const newEndIso = new Date(new Date(startDate).getTime() + durationSeconds * 1000).toISOString()
+          const newEnd = toDatetimeLocalValue(newEndIso)
+          setEndDate(newEnd)
           setDateError(null)
+
+          if (!isAdvancedMode) {
+            const simple = advancedToSimple(startDate, newEnd)
+            setSimpleDate(simple.date)
+            setSimpleEndTime(simple.endTime)
+            // simpleStartTime is left untouched: startDate is not changed by this handler.
+          }
         }
       } catch (error) {
         if (error instanceof DurationParseError) {

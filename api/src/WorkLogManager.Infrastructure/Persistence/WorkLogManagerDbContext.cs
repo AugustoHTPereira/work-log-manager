@@ -12,6 +12,7 @@ public class WorkLogManagerDbContext : DbContext
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeWorkLog> EmployeeWorkLogs => Set<EmployeeWorkLog>();
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+    public DbSet<MonthClosing> MonthClosings => Set<MonthClosing>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

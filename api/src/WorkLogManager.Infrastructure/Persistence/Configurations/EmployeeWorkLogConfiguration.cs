@@ -37,11 +37,20 @@ public class EmployeeWorkLogConfiguration : IEntityTypeConfiguration<EmployeeWor
         builder.Property(w => w.UpdatedAtUtc)
             .IsRequired();
 
+        builder.Property(w => w.MonthClosingId);
+
         builder.HasIndex(w => w.EmployeeId);
+
+        builder.HasIndex(w => w.MonthClosingId);
 
         builder.HasOne<Employee>()
             .WithMany()
             .HasForeignKey(w => w.EmployeeId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<MonthClosing>()
+            .WithMany()
+            .HasForeignKey(w => w.MonthClosingId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

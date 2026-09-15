@@ -28,6 +28,13 @@ public class EmployeeWorkLog
     public DateTimeOffset UpdatedAtUtc { get; internal set; }
 
     /// <summary>
+    /// Optional link to the <see cref="MonthClosing"/> that generated this work log
+    /// (only set for <see cref="WorkLogType.RegularAttendance"/>/<see cref="WorkLogType.Break"/>
+    /// records created by the "close month" flow). <c>null</c> for manually created work logs.
+    /// </summary>
+    public Guid? MonthClosingId { get; internal set; }
+
+    /// <summary>
     /// Recalculates <see cref="DurationSeconds"/> from <see cref="StartDate"/>/<see cref="EndDate"/>.
     /// </summary>
     public void CalculateDuration()

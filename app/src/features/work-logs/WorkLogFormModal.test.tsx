@@ -134,7 +134,7 @@ describe("WorkLogFormModal", () => {
       expect(getDurationInput().value).toBe("1h 30m")
     })
 
-    it("recalculates the underlying end date when the duration text field changes (debounced), reflected once switched to advanced mode", async () => {
+    it("recalculates the visible simple-mode end time when the duration text field changes (debounced), without needing to toggle to advanced mode", async () => {
       renderWithProviders(<WorkLogFormModal open onOpenChange={() => {}} employeeId="emp-1" />)
 
       const { dateInput, startTimeInput, endTimeInput } = getSimpleDateInputs()
@@ -144,11 +144,77 @@ describe("WorkLogFormModal", () => {
 
       fireEvent.change(getDurationInput(), { target: { value: "2h" } })
 
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(
+        () => {
+          expect(getSimpleDateInputs().endTimeInput!.value).toBe("10:00")
+        },
+        { timeout: 1000 },
+      )
 
+      // Confirm the underlying advanced-mode state (used on submit) is consistent too.
       fireEvent.click(getAdvancedModeCheckbox())
       const { endInput } = getAdvancedDateInputs()
       expect(endInput.value).toBe("2026-01-01T10:00")
+    })
+
+    it("does not change the displayed simple-mode end time when the duration text field changes to an invalid token", async () => {
+      renderWithProviders(<WorkLogFormModal open onOpenChange={() => {}} employeeId="emp-1" />)
+
+      const { dateInput, startTimeInput, endTimeInput } = getSimpleDateInputs()
+      fireEvent.change(dateInput!, { target: { value: "2026-01-01" } })
+      fireEvent.change(startTimeInput!, { target: { value: "08:00" } })
+      fireEvent.change(endTimeInput!, { target: { value: "09:30" } })
+
+      fireEvent.change(getDurationInput(), { target: { value: "1H" } })
+
+      expect(await screen.findByText(/Unknown duration unit/i)).toBeInTheDocument()
+      expect(getSimpleDateInputs().endTimeInput!.value).toBe("09:30")
+    })
+
+    it("rolling over to the next day via the duration field keeps the displayed Data unchanged and shows only the time in Fim", async () => {
+      renderWithProviders(<WorkLogFormModal open onOpenChange={() => {}} employeeId="emp-1" />)
+
+      const { dateInput, startTimeInput, endTimeInput } = getSimpleDateInputs()
+      fireEvent.change(dateInput!, { target: { value: "2026-01-01" } })
+      fireEvent.change(startTimeInput!, { target: { value: "22:00" } })
+      fireEvent.change(endTimeInput!, { target: { value: "22:00" } })
+
+      fireEvent.change(getDurationInput(), { target: { value: "4h" } })
+
+      await waitFor(
+        () => {
+          expect(getSimpleDateInputs().endTimeInput!.value).toBe("02:00")
+        },
+        { timeout: 1000 },
+      )
+      expect(getSimpleDateInputs().dateInput!.value).toBe("2026-01-01")
+
+      fireEvent.click(getAdvancedModeCheckbox())
+      const { endInput } = getAdvancedDateInputs()
+      expect(endInput.value).toBe("2026-01-02T02:00")
+    })
+
+    it("toggling the advanced mode checkbox after editing the duration field does not regress the already-corrected end time", async () => {
+      renderWithProviders(<WorkLogFormModal open onOpenChange={() => {}} employeeId="emp-1" />)
+
+      const { dateInput, startTimeInput, endTimeInput } = getSimpleDateInputs()
+      fireEvent.change(dateInput!, { target: { value: "2026-01-01" } })
+      fireEvent.change(startTimeInput!, { target: { value: "08:00" } })
+      fireEvent.change(endTimeInput!, { target: { value: "08:00" } })
+
+      fireEvent.change(getDurationInput(), { target: { value: "2h" } })
+
+      await waitFor(
+        () => {
+          expect(getSimpleDateInputs().endTimeInput!.value).toBe("10:00")
+        },
+        { timeout: 1000 },
+      )
+
+      fireEvent.click(getAdvancedModeCheckbox())
+      fireEvent.click(getAdvancedModeCheckbox())
+
+      expect(getSimpleDateInputs().endTimeInput!.value).toBe("10:00")
     })
   })
 
@@ -249,11 +315,12 @@ describe("WorkLogFormModal", () => {
       fireEvent.change(endTimeInput!, { target: { value: "09:30" } })
       expect(getDurationInput().value).toBe("1h 30m")
 
-      // Simple mode: editing the duration field recalculates the underlying end date -
-      // reflected in the simple mode fields once the checkbox is toggled (by design, the
-      // simple fields are only recomputed on open/toggle, not on every keystroke).
+      // Simple mode: editing the duration field recalculates the underlying end date,
+      // reflected immediately in the simple mode fields (no toggle needed).
       fireEvent.change(getDurationInput(), { target: { value: "2h" } })
       await new Promise((resolve) => setTimeout(resolve, 500))
+
+      expect(getSimpleDateInputs().endTimeInput!.value).toBe("10:00")
 
       fireEvent.click(getAdvancedModeCheckbox())
       const { startInput, endInput } = getAdvancedDateInputs()

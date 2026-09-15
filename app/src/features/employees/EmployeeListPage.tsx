@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus } from "lucide-react"
+import { CalendarCheck, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/context-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { EmployeeSummary } from "@/lib/api/types"
+import { MonthCloseModal } from "@/features/month-closing/MonthCloseModal"
 import { EmployeeFormModal } from "./EmployeeFormModal"
 import { useEmployees } from "./hooks/useEmployees"
 import { WorkLogFormModal } from "../work-logs/WorkLogFormModal"
@@ -19,16 +20,23 @@ export function EmployeeListPage() {
   const navigate = useNavigate()
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isMonthCloseModalOpen, setIsMonthCloseModalOpen] = useState(false)
   const [workLogEmployee, setWorkLogEmployee] = useState<EmployeeSummary | null>(null)
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Funcionários</h1>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="size-4" />
-          Novo funcionário
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsMonthCloseModalOpen(true)}>
+            <CalendarCheck className="size-4" />
+            Fechar mês
+          </Button>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="size-4" />
+            Novo funcionário
+          </Button>
+        </div>
       </div>
 
       {isLoading && <p className="text-muted-foreground">Carregando...</p>}
@@ -74,6 +82,8 @@ export function EmployeeListPage() {
       )}
 
       <EmployeeFormModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
+
+      <MonthCloseModal open={isMonthCloseModalOpen} onOpenChange={setIsMonthCloseModalOpen} />
 
       {workLogEmployee && (
         <WorkLogFormModal

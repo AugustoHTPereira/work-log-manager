@@ -43,4 +43,21 @@ public class EmployeeWorkLogRepository : IEmployeeWorkLogRepository
             .OrderByDescending(w => w.StartDate)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddRangeAsync(IEnumerable<EmployeeWorkLog> workLogs, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.EmployeeWorkLogs.AddRangeAsync(workLogs, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<EmployeeWorkLog>> ListByTypeAndDateRangeAsync(
+        WorkLogType type,
+        DateTimeOffset rangeStartInclusive,
+        DateTimeOffset rangeEndExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.EmployeeWorkLogs
+            .Where(w => w.Type == type && w.StartDate >= rangeStartInclusive && w.StartDate < rangeEndExclusive)
+            .ToListAsync(cancellationToken);
+    }
 }

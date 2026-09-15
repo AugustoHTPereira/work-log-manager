@@ -13,6 +13,7 @@ public class AutoMapperConfigurationTests
             cfg.AddProfile<EmployeeMappingProfile>();
             cfg.AddProfile<EmployeeWorkLogMappingProfile>();
             cfg.AddProfile<SystemSettingsMappingProfile>();
+            cfg.AddProfile<MonthClosingMappingProfile>();
         });
 
         configuration.AssertConfigurationIsValid();
