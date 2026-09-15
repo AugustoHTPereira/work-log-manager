@@ -1,65 +1,86 @@
-import { useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
-import { Pencil, Plus, Trash2 } from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
-import type { EmployeeWorkLog } from "@/lib/api/types"
-import { EmployeeFormModal } from "./EmployeeFormModal"
-import { useDeleteEmployee } from "./hooks/useDeleteEmployee"
-import { useEmployee } from "./hooks/useEmployee"
-import { WorkLogFormModal } from "../work-logs/WorkLogFormModal"
-import { useDeleteWorkLog } from "../work-logs/hooks/useDeleteWorkLog"
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import type { EmployeeWorkLog } from "@/lib/api/types";
+import { EmployeeFormModal } from "./EmployeeFormModal";
+import { useDeleteEmployee } from "./hooks/useDeleteEmployee";
+import { useEmployee } from "./hooks/useEmployee";
+import { WorkLogFormModal } from "../work-logs/WorkLogFormModal";
+import { useDeleteWorkLog } from "../work-logs/hooks/useDeleteWorkLog";
+import { Info } from "@/components/ui/info";
+import { formatDuration } from "@/lib/worklog-duration";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const workLogTypeLabels: Record<string, string> = {
   Overtime: "Hora extra",
   Absence: "Falta",
-}
+};
 
 export function EmployeeDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const { data: employee, isLoading } = useEmployee(id)
-  const deleteEmployee = useDeleteEmployee()
-  const deleteWorkLog = useDeleteWorkLog(id ?? "")
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { data: employee, isLoading } = useEmployee(id);
+  const deleteEmployee = useDeleteEmployee();
+  const deleteWorkLog = useDeleteWorkLog(id ?? "");
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteEmployeeDialogOpen, setIsDeleteEmployeeDialogOpen] = useState(false)
-  const [workLogModal, setWorkLogModal] = useState<{ open: boolean; workLog?: EmployeeWorkLog }>({
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteEmployeeDialogOpen, setIsDeleteEmployeeDialogOpen] =
+    useState(false);
+  const [workLogModal, setWorkLogModal] = useState<{
+    open: boolean;
+    workLog?: EmployeeWorkLog;
+  }>({
     open: false,
-  })
-  const [workLogToDelete, setWorkLogToDelete] = useState<EmployeeWorkLog | null>(null)
+  });
+  const [workLogToDelete, setWorkLogToDelete] =
+    useState<EmployeeWorkLog | null>(null);
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Carregando...</p>
+    return <p className="text-muted-foreground">Carregando...</p>;
   }
 
   if (!employee || !id) {
-    return <p className="text-muted-foreground">Funcionário não encontrado.</p>
+    return <p className="text-muted-foreground">Funcionário não encontrado.</p>;
   }
 
   const handleDeleteEmployee = async () => {
     try {
-      await deleteEmployee.mutateAsync(employee.id)
-      toast.success("Funcionário excluído com sucesso.")
-      navigate("/")
+      await deleteEmployee.mutateAsync(employee.id);
+      toast.success("Funcionário excluído com sucesso.");
+      navigate("/");
     } catch {
-      toast.error("Não foi possível excluir o funcionário.")
+      toast.error("Não foi possível excluir o funcionário.");
     }
-  }
+  };
 
   const handleDeleteWorkLog = async () => {
-    if (!workLogToDelete) return
+    if (!workLogToDelete) return;
     try {
-      await deleteWorkLog.mutateAsync(workLogToDelete.id)
-      toast.success("Worklog excluído com sucesso.")
+      await deleteWorkLog.mutateAsync(workLogToDelete.id);
+      toast.success("Worklog excluído com sucesso.");
     } catch {
-      toast.error("Não foi possível excluir o worklog.")
+      toast.error("Não foi possível excluir o worklog.");
     } finally {
-      setWorkLogToDelete(null)
+      setWorkLogToDelete(null);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -69,30 +90,47 @@ export function EmployeeDetailPage() {
           <p className="text-muted-foreground">{employee.role}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
-            <Pencil className="size-4" />
-            Editar
-          </Button>
-          <Button variant="destructive" onClick={() => setIsDeleteEmployeeDialogOpen(true)}>
-            <Trash2 className="size-4" />
-            Excluir
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreVertical />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+                  <Pencil className="size-4" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setIsDeleteEmployeeDialogOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-md border p-4 sm:grid-cols-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Data de admissão</p>
-          <p>{employee.hireDate}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Horas/dia (específico)</p>
-          <p>{employee.dailyWorkHours ?? "-"}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Horas/dia (efetivo)</p>
-          <p>{employee.effectiveDailyWorkHours}</p>
-        </div>
+        <Info
+          title="Data de admissão"
+          value={employee.hireDate}
+          description="Data de admissão do funcionário."
+        />
+        <Info
+          title="Horas/dia (específico)"
+          value={employee.dailyWorkHours ?? "-"}
+          description="Horas/dia específicas para este funcionário. Caso não esteja definido, o valor padrão da empresa será usado."
+        />
+        <Info
+          title="Horas/dia (efetivo)"
+          value={employee.effectiveDailyWorkHours ?? "-"}
+          description="Horas/dia efetivas do funcionário, considerando o valor específico ou o padrão da empresa."
+        />
       </div>
 
       <div className="space-y-4">
@@ -122,22 +160,31 @@ export function EmployeeDetailPage() {
             <TableBody>
               {employee.workLogs.map((workLog) => (
                 <TableRow key={workLog.id}>
-                  <TableCell>{workLogTypeLabels[workLog.type] ?? workLog.type}</TableCell>
-                  <TableCell>{new Date(workLog.startDate).toLocaleString()}</TableCell>
-                  <TableCell>{new Date(workLog.endDate).toLocaleString()}</TableCell>
-                  <TableCell>{workLog.durationSeconds}s</TableCell>
-                  <TableCell className="flex justify-end gap-2">
+                  <TableCell>
+                    {workLogTypeLabels[workLog.type] ?? workLog.type}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(workLog.startDate).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(workLog.endDate).toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    {formatDuration(workLog.durationSeconds)}
+                  </TableCell>
+                  <TableCell className="flex justify-end gap-2 py-0.5">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="icon-sm"
                       onClick={() => setWorkLogModal({ open: true, workLog })}
                     >
                       <Pencil className="size-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="icon-sm"
                       onClick={() => setWorkLogToDelete(workLog)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -172,7 +219,7 @@ export function EmployeeDetailPage() {
       <DeleteConfirmDialog
         open={Boolean(workLogToDelete)}
         onOpenChange={(open) => {
-          if (!open) setWorkLogToDelete(null)
+          if (!open) setWorkLogToDelete(null);
         }}
         title="Excluir worklog"
         description="Esta ação não pode ser desfeita. Deseja continuar?"
@@ -186,5 +233,5 @@ export function EmployeeDetailPage() {
         workLog={workLogModal.workLog}
       />
     </div>
-  )
+  );
 }
