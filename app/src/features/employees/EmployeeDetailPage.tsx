@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,10 +27,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { format } from "date-fns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 const workLogTypeLabels: Record<string, string> = {
   Overtime: "Hora extra",
   Absence: "Falta",
+  RegularAttendance: "Presença",
+  Break: "Intervalo",
+};
+
+const workLogTypeVariants: Record<string, Pick<BadgeProps, "variant">> = {
+  Overtime: { variant: "default" },
+  Absence: { variant: "destructive" },
+  RegularAttendance: { variant: "outline" },
+  Break: { variant: "outline" },
 };
 
 export function EmployeeDetailPage() {
@@ -93,7 +109,7 @@ export function EmployeeDetailPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
-                <MoreVertical />
+                <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -136,9 +152,12 @@ export function EmployeeDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Worklogs</h2>
-          <Button onClick={() => setWorkLogModal({ open: true })}>
+          <Button
+            onClick={() => setWorkLogModal({ open: true })}
+            size="icon"
+            variant="outline"
+          >
             <Plus className="size-4" />
-            Novo worklog
           </Button>
         </div>
 
@@ -150,44 +169,95 @@ export function EmployeeDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Início</TableHead>
-                <TableHead>Fim</TableHead>
-                <TableHead>Duração</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="w-[10%]">Data</TableHead>
+                <TableHead className="w-[70%]">Tipo</TableHead>
+                <TableHead className="w-[10%]">Duração</TableHead>
+                <TableHead className="w-[10%] text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {employee.workLogs.map((workLog) => (
                 <TableRow key={workLog.id}>
                   <TableCell>
-                    {workLogTypeLabels[workLog.type] ?? workLog.type}
+                    <Tooltip>
+                      <TooltipTrigger>
+                        {format(new Date(workLog.startDate), "dd/MM/yyyy")}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="flex items-center gap-1">
+                          <span>
+                            {format(
+                              new Date(workLog.startDate),
+                              "dd/MM/yyyy HH:mm",
+                            )}
+                          </span>
+                          <span>-</span>
+                          <span>
+                            {format(
+                              new Date(workLog.endDate),
+                              "dd/MM/yyyy HH:mm",
+                            )}
+                          </span>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell className="py-0.5">
+                    <Badge variant={workLogTypeVariants[workLog.type]?.variant}>
+                      {workLogTypeLabels[workLog.type] ?? workLog.type}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(workLog.startDate).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(workLog.endDate).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    {formatDuration(workLog.durationSeconds)}
+                    <Tooltip>
+                      <TooltipTrigger>
+                        {formatDuration(workLog.durationSeconds)}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="flex items-center gap-1">
+                          <span>
+                            {format(
+                              new Date(workLog.startDate),
+                              "dd/MM/yyyy HH:mm",
+                            )}
+                          </span>
+                          <span>-</span>
+                          <span>
+                            {format(
+                              new Date(workLog.endDate),
+                              "dd/MM/yyyy HH:mm",
+                            )}
+                          </span>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableCell>
                   <TableCell className="flex justify-end gap-2 py-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setWorkLogModal({ open: true, workLog })}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setWorkLogToDelete(workLog)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setWorkLogModal({ open: true, workLog })
+                            }
+                          >
+                            <Pencil className="size-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setWorkLogToDelete(workLog)}
+                          >
+                            <Trash2 className="size-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
