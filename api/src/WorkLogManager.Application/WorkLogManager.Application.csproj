@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Entities expose `internal set` properties (see the remarks on `Employee`,
+      `EmployeeWorkLog` and `SystemSettings`): only code inside this assembly (use-cases)
+      is allowed to mutate them directly. The test project needs the same access to build
+      entity instances/assert on mutated state without a public setter surface.
+    -->
+    <InternalsVisibleTo Include="WorkLogManager.Application.Tests" />
+  </ItemGroup>
+
+</Project>
