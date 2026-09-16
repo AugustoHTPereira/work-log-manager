@@ -11,6 +11,20 @@ public static class EmployeeWorkLogsEndpoints
     {
         var group = app.MapGroup("/employees/{employeeId:guid}/work-logs").WithTags("EmployeeWorkLogs");
 
+        group.MapGet("/", async (
+            Guid employeeId,
+            DateTimeOffset? startDate,
+            DateTimeOffset? endDate,
+            WorkLogType? type,
+            WorkLogOrigin? origin,
+            ListEmployeeWorkLogsUseCase useCase,
+            IMapper mapper,
+            CancellationToken cancellationToken) =>
+        {
+            var workLogs = await useCase.ExecuteAsync(employeeId, startDate, endDate, type, origin, cancellationToken);
+            return Results.Ok(mapper.Map<IReadOnlyList<EmployeeWorkLogResponse>>(workLogs));
+        });
+
         group.MapPost("/", async (
             Guid employeeId,
             CreateEmployeeWorkLogRequest request,

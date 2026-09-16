@@ -16,18 +16,19 @@ necessário) resultado do code review.
     revisor.md             # confronta implementação x plano e gera code review
   commands/
     dev-flow.md            # /dev-flow — orquestra os 4 agentes em sequência
-docs/
-  stack.md                       # convenções técnicas .NET/React/PostgreSQL (edite!)
-  padroes-desenvolvimento.md     # padrões específicos deste repositório (edite!)
-templates/
-  report-po.md
-  plano-desenvolvimento.md
-  code-review.md
+  docs/
+    stack.md                       # convenções técnicas .NET/React/PostgreSQL (edite!)
+    padroes-desenvolvimento.md     # padrões específicos deste repositório (edite!)
+  .claude/templates/
+    report-po.md
+    plano-desenvolvimento.md
+    code-review.md
 ```
 
 ## Instalação
-1. Copie `.claude/`, `docs/` e `templates/` para a raiz deste repositório.
-2. Edite `docs/stack.md` e `docs/padroes-desenvolvimento.md` com o nome real da
+
+1. Copie `.claude/`, `.claude/docs/` e `.claude/templates/` para a raiz deste repositório.
+2. Edite `.claude/docs/stack.md` e `.claude/docs/padroes-desenvolvimento.md` com o nome real da
    solution (`<ProjectName>`), bundler/framework de teste do front, e qualquer
    convenção própria do repositório.
 3. Adicione `.claude/plans/` ao `.gitignore` (são artefatos de planejamento, não
@@ -36,6 +37,7 @@ templates/
 ## Uso
 
 Fluxo completo, orquestrado automaticamente:
+
 ```
 /dev-flow
 Como usuário administrador, preciso poder desativar um evento sem excluí-lo.
@@ -53,6 +55,7 @@ Também é possível invocar cada agente isoladamente, passando o `task-id` quan
 aplicável.
 
 ## Garantias do fluxo
+
 - Nenhum agente se conecta a um PostgreSQL real: alterações de schema viram apenas
   migrations do EF Core (`dotnet ef migrations add`), nunca aplicadas
   (`dotnet ef database update`) pelos agentes.

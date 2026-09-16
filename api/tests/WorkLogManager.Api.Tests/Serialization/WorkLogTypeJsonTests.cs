@@ -86,10 +86,32 @@ public class WorkLogTypeJsonTests
             WorkLogType.Absence,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow.AddHours(1),
-            3600);
+            3600,
+            null,
+            null,
+            WorkLogOrigin.Manual);
 
         var json = JsonSerializer.Serialize(response, Options);
 
         Assert.Contains("\"type\":\"Absence\"", json);
+    }
+
+    [Fact]
+    public void Serialize_EmployeeWorkLogResponse_WritesOriginAsString()
+    {
+        var response = new EmployeeWorkLogResponse(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            WorkLogType.RegularAttendance,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddHours(1),
+            3600,
+            null,
+            null,
+            WorkLogOrigin.Automatic);
+
+        var json = JsonSerializer.Serialize(response, Options);
+
+        Assert.Contains("\"origin\":\"Automatic\"", json);
     }
 }

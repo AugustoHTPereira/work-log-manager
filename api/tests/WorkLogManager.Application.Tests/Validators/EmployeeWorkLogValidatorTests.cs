@@ -40,4 +40,34 @@ public class EmployeeWorkLogValidatorTests
 
         Assert.False(result.IsValid);
     }
+
+    [Fact]
+    public void Validate_NoteIsNull_HasNoErrors()
+    {
+        var workLog = EntityFactory.CreateEmployeeWorkLog(note: null);
+
+        var result = _validator.Validate(workLog);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_NoteWithin255Characters_HasNoErrors()
+    {
+        var workLog = EntityFactory.CreateEmployeeWorkLog(note: new string('a', 255));
+
+        var result = _validator.Validate(workLog);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_NoteExceeds255Characters_HasError()
+    {
+        var workLog = EntityFactory.CreateEmployeeWorkLog(note: new string('a', 256));
+
+        var result = _validator.Validate(workLog);
+
+        Assert.False(result.IsValid);
+    }
 }

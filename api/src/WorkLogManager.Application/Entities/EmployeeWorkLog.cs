@@ -28,11 +28,28 @@ public class EmployeeWorkLog
     public DateTimeOffset UpdatedAtUtc { get; internal set; }
 
     /// <summary>
-    /// Optional link to the <see cref="MonthClosing"/> that generated this work log
-    /// (only set for <see cref="WorkLogType.RegularAttendance"/>/<see cref="WorkLogType.Break"/>
-    /// records created by the "close month" flow). <c>null</c> for manually created work logs.
+    /// Optional link to the <see cref="MonthClosing"/> this work log belongs to. Set either
+    /// when the "close month" flow generates a <see cref="WorkLogType.RegularAttendance"/>/
+    /// <see cref="WorkLogType.Break"/> record, or when that same flow associates a
+    /// pre-existing (e.g. manually created <see cref="WorkLogType.Overtime"/>/
+    /// <see cref="WorkLogType.Absence"/>) work log whose <see cref="StartDate"/> falls within
+    /// the month being closed. Once set, the work log is considered "frozen": it can no
+    /// longer be edited or deleted. <c>null</c> for work logs not yet linked to any closed
+    /// month.
     /// </summary>
     public Guid? MonthClosingId { get; internal set; }
+
+    /// <summary>
+    /// Optional free-text remark about this work log (e.g. the reason for an absence).
+    /// <c>null</c> or empty when not provided.
+    /// </summary>
+    public string? Note { get; internal set; }
+
+    /// <summary>
+    /// Whether this work log was generated automatically by the "close month" flow or
+    /// created manually by a user. See <see cref="WorkLogOrigin"/>.
+    /// </summary>
+    public WorkLogOrigin Origin { get; internal set; }
 
     /// <summary>
     /// Recalculates <see cref="DurationSeconds"/> from <see cref="StartDate"/>/<see cref="EndDate"/>.

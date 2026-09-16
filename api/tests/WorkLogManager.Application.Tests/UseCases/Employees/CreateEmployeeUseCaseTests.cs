@@ -42,14 +42,4 @@ public class CreateEmployeeUseCaseTests
 
         repository.Verify(r => r.AddAsync(It.IsAny<Employee>(), It.IsAny<CancellationToken>()), Times.Never);
     }
-
-    [Fact]
-    public async Task ExecuteAsync_NonPositiveDailyWorkHours_ThrowsValidationException()
-    {
-        var repository = new Mock<IEmployeeRepository>();
-        var useCase = CreateUseCase(repository);
-        var employee = EntityFactory.CreateEmployee(dailyWorkHours: 0m);
-
-        await Assert.ThrowsAsync<ValidationException>(() => useCase.ExecuteAsync(employee));
-    }
 }

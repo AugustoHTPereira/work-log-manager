@@ -1,7 +1,7 @@
 /**
  * Pure HTTP access layer: axios wrapper with a base URL and standardized error handling.
  * No React, no caching - only typed functions per endpoint live on top of this (see
- * employees.ts, workLogs.ts, systemSettings.ts).
+ * employees.ts, workLogs.ts, workSchedules.ts).
  */
 
 import axios, { type AxiosRequestConfig } from "axios";
@@ -48,12 +48,39 @@ async function request<TResponse>(
   return response.data;
 }
 
+async function getBlob(path: string): Promise<Blob> {
+  const response = await httpClient.request<Blob>({
+    url: path,
+    method: "GET",
+    responseType: "blob",
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    // The back-end always errors in JSON, even on this binary endpoint, so the error blob
+    // must be read as text and parsed before throwing ApiError.
+    const errorText = await (response.data as Blob).text();
+    let message = `Request to ${path} failed with status ${response.status}.`;
+    try {
+      const body = JSON.parse(errorText) as { message?: string };
+      message = body?.message ?? message;
+    } catch {
+      // Response body was not JSON - keep the default message.
+    }
+
+    throw new ApiError(message, response.status);
+  }
+
+  return response.data;
+}
+
 export const apiClient = {
-  get: <TResponse>(path: string) => request<TResponse>(path, { method: "GET" }),
+  get: <TResponse>(path: string, params?: Record<string, string | number | undefined> | URLSearchParams) =>
+    request<TResponse>(path, { method: "GET", params }),
   post: <TResponse>(path: string, body: unknown) =>
     request<TResponse>(path, { method: "POST", data: body }),
   put: <TResponse>(path: string, body: unknown) =>
     request<TResponse>(path, { method: "PUT", data: body }),
   delete: <TResponse>(path: string) =>
     request<TResponse>(path, { method: "DELETE" }),
+  getBlob,
 };

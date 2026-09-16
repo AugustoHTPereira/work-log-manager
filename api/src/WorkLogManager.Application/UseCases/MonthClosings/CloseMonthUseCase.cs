@@ -4,22 +4,33 @@ using WorkLogManager.Application.Entities;
 using WorkLogManager.Application.Interfaces;
 using WorkLogManager.Application.Results;
 using WorkLogManager.Application.Services;
-using WorkLogManager.Application.UseCases.SystemSettings;
 
 namespace WorkLogManager.Application.UseCases.MonthClosings;
 
 /// <summary>
-/// Closes a fully completed past calendar month by automatically generating
-/// <see cref="WorkLogType.RegularAttendance"/> (and, when applicable, <see cref="WorkLogType.Break"/>)
-/// work logs for every business day and every employee, based on each employee's effective
-/// daily work hours.
+/// Closes a fully completed past calendar month by automatically generating, for every day and
+/// every employee that has an effective work schedule for that day (see
+/// <see cref="WorkScheduleResolver"/>), whichever of <see cref="WorkLogType.RegularAttendance"/>
+/// and <see cref="WorkLogType.Break"/> is enabled by the <c>AutoWorkLogTypes</c> system
+/// parameter (see <see cref="AutoWorkLogTypesParser"/>; defaults to only
+/// <see cref="WorkLogType.RegularAttendance"/> when not configured). Days with no effective
+/// schedule (neither employee-specific nor general) are treated as days off and skipped without
+/// counting toward <see cref="EmployeeWorkLogGenerationSummary.SkippedCount"/>. In addition, every pre-existing
+/// <see cref="EmployeeWorkLog"/> (of any <see cref="WorkLogType"/>, including manually created
+/// ones such as <see cref="WorkLogType.Overtime"/>/<see cref="WorkLogType.Absence"/>) whose
+/// <see cref="EmployeeWorkLog.StartDate"/> falls within the month being closed and that is not
+/// yet linked to a <see cref="MonthClosing"/> gets its
+/// <see cref="EmployeeWorkLog.MonthClosingId"/> set to this closing, "freezing" it so it can no
+/// longer be edited or deleted (see <see cref="UseCases.EmployeeWorkLogs.UpdateEmployeeWorkLogUseCase"/>
+/// and <see cref="UseCases.EmployeeWorkLogs.DeleteEmployeeWorkLogUseCase"/>).
 /// </summary>
 public class CloseMonthUseCase
 {
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IEmployeeWorkLogRepository _employeeWorkLogRepository;
     private readonly IMonthClosingRepository _monthClosingRepository;
-    private readonly GetSystemSettingsUseCase _getSystemSettingsUseCase;
+    private readonly IWorkSchedulePeriodRepository _workSchedulePeriodRepository;
+    private readonly ISystemParameterRepository _systemParameterRepository;
     private readonly WorkLogGenerationService _workLogGenerationService;
     private readonly IValidator<MonthClosing> _validator;
 
@@ -27,14 +38,16 @@ public class CloseMonthUseCase
         IEmployeeRepository employeeRepository,
         IEmployeeWorkLogRepository employeeWorkLogRepository,
         IMonthClosingRepository monthClosingRepository,
-        GetSystemSettingsUseCase getSystemSettingsUseCase,
+        IWorkSchedulePeriodRepository workSchedulePeriodRepository,
+        ISystemParameterRepository systemParameterRepository,
         WorkLogGenerationService workLogGenerationService,
         IValidator<MonthClosing> validator)
     {
         _employeeRepository = employeeRepository;
         _employeeWorkLogRepository = employeeWorkLogRepository;
         _monthClosingRepository = monthClosingRepository;
-        _getSystemSettingsUseCase = getSystemSettingsUseCase;
+        _workSchedulePeriodRepository = workSchedulePeriodRepository;
+        _systemParameterRepository = systemParameterRepository;
         _workLogGenerationService = workLogGenerationService;
         _validator = validator;
     }
@@ -49,17 +62,30 @@ public class CloseMonthUseCase
             throw new DomainException($"Month {input.Month:00}/{input.Year} has already been closed.");
         }
 
-        var employees = await _employeeRepository.ListAllAsync(cancellationToken);
-        var systemSettings = await _getSystemSettingsUseCase.ExecuteAsync(cancellationToken);
+        var autoWorkLogTypeRows = await _systemParameterRepository.ListByParamAsync(
+            SystemParameterName.AutoWorkLogTypes, cancellationToken);
+        var enabledWorkLogTypes = AutoWorkLogTypesParser.Parse(autoWorkLogTypeRows);
 
-        var rangeStart = new DateTimeOffset(input.Year, input.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        var employees = await _employeeRepository.ListAllAsync(cancellationToken);
+        var allPeriods = await _workSchedulePeriodRepository.ListAllAsync(cancellationToken);
+
+        var generalPeriods = allPeriods.Where(p => p.EmployeeId is null).ToList();
+        var periodsByEmployeeId = allPeriods
+            .Where(p => p.EmployeeId is not null)
+            .GroupBy(p => p.EmployeeId!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<WorkSchedulePeriod>)g.ToList());
+
+        var rangeStart = BusinessTimeZone.ToInstant(new DateTime(input.Year, input.Month, 1, 0, 0, 0, DateTimeKind.Unspecified));
         var rangeEnd = rangeStart.AddMonths(1);
 
         var existingRegularAttendances = await _employeeWorkLogRepository.ListByTypeAndDateRangeAsync(
             WorkLogType.RegularAttendance, rangeStart, rangeEnd, cancellationToken);
 
-        var existingDays = existingRegularAttendances
-            .Select(w => (EmployeeId: w.EmployeeId, Date: DateOnly.FromDateTime(w.StartDate.UtcDateTime)))
+        var existingAbsences = await _employeeWorkLogRepository.ListByTypeAndDateRangeAsync(
+            WorkLogType.Absence, rangeStart, rangeEnd, cancellationToken);
+
+        var existingDays = existingRegularAttendances.Concat(existingAbsences)
+            .Select(w => (EmployeeId: w.EmployeeId, Date: BusinessTimeZone.ToBusinessDate(w.StartDate)))
             .ToHashSet();
 
         var now = DateTimeOffset.UtcNow;
@@ -78,14 +104,18 @@ public class CloseMonthUseCase
 
         foreach (var employee in employees)
         {
-            var effectiveDailyWorkHours = employee.DailyWorkHours ?? systemSettings.DefaultDailyWorkHours;
+            var employeePeriods = periodsByEmployeeId.GetValueOrDefault(employee.Id, []);
             var generatedCount = 0;
             var skippedCount = 0;
 
             for (var day = 1; day <= daysInMonth; day++)
             {
                 var date = new DateOnly(input.Year, input.Month, day);
-                if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+
+                var effectiveDailyWorkHours = WorkScheduleResolver.GetEffectiveDailyWorkHours(
+                    date.DayOfWeek, generalPeriods, employeePeriods);
+
+                if (effectiveDailyWorkHours == 0m)
                 {
                     continue;
                 }
@@ -98,12 +128,15 @@ public class CloseMonthUseCase
 
                 var generatedWorkday = _workLogGenerationService.GenerateWorkday(date, effectiveDailyWorkHours);
 
-                foreach (var period in generatedWorkday.RegularAttendancePeriods)
+                if (enabledWorkLogTypes.Contains(WorkLogType.RegularAttendance))
                 {
-                    workLogsToCreate.Add(BuildWorkLog(employee.Id, monthClosing.Id, WorkLogType.RegularAttendance, period.Start, period.End, now));
+                    foreach (var period in generatedWorkday.RegularAttendancePeriods)
+                    {
+                        workLogsToCreate.Add(BuildWorkLog(employee.Id, monthClosing.Id, WorkLogType.RegularAttendance, period.Start, period.End, now));
+                    }
                 }
 
-                if (generatedWorkday.BreakPeriod is { } breakPeriod)
+                if (enabledWorkLogTypes.Contains(WorkLogType.Break) && generatedWorkday.BreakPeriod is { } breakPeriod)
                 {
                     workLogsToCreate.Add(BuildWorkLog(employee.Id, monthClosing.Id, WorkLogType.Break, breakPeriod.Start, breakPeriod.End, now));
                 }
@@ -114,8 +147,18 @@ public class CloseMonthUseCase
             summaries.Add(new EmployeeWorkLogGenerationSummary(employee.Id, employee.Name, generatedCount, skippedCount));
         }
 
+        var unclosedExistingWorkLogs = await _employeeWorkLogRepository.ListUnclosedByDateRangeAsync(
+            rangeStart, rangeEnd, cancellationToken);
+
+        foreach (var workLog in unclosedExistingWorkLogs)
+        {
+            workLog.MonthClosingId = monthClosing.Id;
+            workLog.Touch();
+        }
+
         await _monthClosingRepository.AddAsync(monthClosing, cancellationToken);
         await _employeeWorkLogRepository.AddRangeAsync(workLogsToCreate, cancellationToken);
+        await _employeeWorkLogRepository.UpdateRangeAsync(unclosedExistingWorkLogs, cancellationToken);
 
         return new MonthClosingResult(monthClosing, summaries);
     }
@@ -134,6 +177,7 @@ public class CloseMonthUseCase
             EmployeeId = employeeId,
             MonthClosingId = monthClosingId,
             Type = type,
+            Origin = WorkLogOrigin.Automatic,
             StartDate = start,
             EndDate = end,
             CreatedAtUtc = now,

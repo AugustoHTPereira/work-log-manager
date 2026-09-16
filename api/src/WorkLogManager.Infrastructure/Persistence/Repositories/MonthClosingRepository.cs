@@ -18,9 +18,28 @@ public class MonthClosingRepository : IMonthClosingRepository
         return _dbContext.MonthClosings.FirstOrDefaultAsync(m => m.Month == month && m.Year == year, cancellationToken);
     }
 
+    public Task<MonthClosing?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.MonthClosings.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+    }
+
     public async Task AddAsync(MonthClosing monthClosing, CancellationToken cancellationToken = default)
     {
         await _dbContext.MonthClosings.AddAsync(monthClosing, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MonthClosing>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.MonthClosings
+            .OrderByDescending(m => m.Year)
+            .ThenByDescending(m => m.Month)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(MonthClosing monthClosing, CancellationToken cancellationToken = default)
+    {
+        _dbContext.MonthClosings.Remove(monthClosing);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -8,7 +8,8 @@ namespace WorkLogManager.Application.Services;
 /// the employee's effective daily work hours.
 /// </summary>
 /// <remarks>
-/// Base workday start is <c>07:00</c> UTC, base break window is <c>11:00</c>-<c>12:00</c> UTC.
+/// Base workday start is <c>07:00</c>, base break window is <c>11:00</c>-<c>12:00</c>, both in
+/// <see cref="BusinessTimeZone"/> (business local time), not UTC.
 /// Both are varied by a pseudo-random offset of up to <see cref="MaxVarianceMinutes"/> minutes,
 /// never the base time itself. See the "Regra de geração dos períodos" section of the
 /// approved plan for the full mathematical proof behind the <c>endOffsetMinutes</c> formula
@@ -31,9 +32,9 @@ public class WorkLogGenerationService
 
     public GeneratedWorkday GenerateWorkday(DateOnly date, decimal effectiveDailyWorkHours)
     {
-        var baseStart = new DateTimeOffset(date.ToDateTime(WorkdayBaseStart), TimeSpan.Zero);
-        var breakStart = new DateTimeOffset(date.ToDateTime(BreakStart), TimeSpan.Zero);
-        var breakEnd = new DateTimeOffset(date.ToDateTime(BreakEnd), TimeSpan.Zero);
+        var baseStart = BusinessTimeZone.ToInstant(date, WorkdayBaseStart);
+        var breakStart = BusinessTimeZone.ToInstant(date, BreakStart);
+        var breakEnd = BusinessTimeZone.ToInstant(date, BreakEnd);
 
         var startOffsetMinutes = _randomProvider.NextInt(-MaxVarianceMinutes, MaxVarianceMinutes);
 

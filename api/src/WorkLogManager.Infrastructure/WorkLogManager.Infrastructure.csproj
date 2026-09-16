@@ -8,6 +8,15 @@
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!--
+      QuestPDF Community license note (see the approved development plan for the
+      "month-closing-pdf" task): free for companies below ~USD 1 million/year revenue or
+      non-commercial use; a paid commercial license is required above that. This app is
+      internal tooling for a single small/medium company, which historically fits the
+      Community license, but the project owner must confirm this before going to
+      production.
+    -->
+    <PackageReference Include="QuestPDF" Version="2026.9.0" />
   </ItemGroup>
 
   <PropertyGroup>

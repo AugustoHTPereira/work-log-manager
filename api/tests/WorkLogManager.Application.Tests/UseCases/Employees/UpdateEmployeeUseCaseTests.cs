@@ -26,14 +26,13 @@ public class UpdateEmployeeUseCaseTests
         repository.Setup(r => r.GetByIdAsync(existingEmployee.Id, It.IsAny<CancellationToken>())).ReturnsAsync(existingEmployee);
 
         var useCase = CreateUseCase(repository);
-        var input = EntityFactory.CreateEmployee(name: "Jane Smith", role: "Senior Developer", hireDate: new DateOnly(2021, 1, 1), dailyWorkHours: 6m);
+        var input = EntityFactory.CreateEmployee(name: "Jane Smith", role: "Senior Developer", hireDate: new DateOnly(2021, 1, 1));
 
         var result = await useCase.ExecuteAsync(existingEmployee.Id, input);
 
         Assert.Same(existingEmployee, result);
         Assert.Equal("Jane Smith", result.Name);
         Assert.Equal("Senior Developer", result.Role);
-        Assert.Equal(6m, result.DailyWorkHours);
         Assert.True(result.UpdatedAtUtc >= originalUpdatedAt);
         repository.Verify(r => r.UpdateAsync(existingEmployee, It.IsAny<CancellationToken>()), Times.Once);
     }

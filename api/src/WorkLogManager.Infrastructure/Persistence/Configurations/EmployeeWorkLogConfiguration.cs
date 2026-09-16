@@ -39,6 +39,14 @@ public class EmployeeWorkLogConfiguration : IEntityTypeConfiguration<EmployeeWor
 
         builder.Property(w => w.MonthClosingId);
 
+        builder.Property(w => w.Note)
+            .HasMaxLength(255);
+
+        builder.Property(w => w.Origin)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
         builder.HasIndex(w => w.EmployeeId);
 
         builder.HasIndex(w => w.MonthClosingId);

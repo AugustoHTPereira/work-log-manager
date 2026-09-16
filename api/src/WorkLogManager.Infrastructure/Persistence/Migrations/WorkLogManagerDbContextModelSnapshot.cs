@@ -33,10 +33,6 @@ namespace WorkLogManager.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at_utc");
 
-                    b.Property<decimal?>("DailyWorkHours")
-                        .HasColumnType("numeric(5,2)")
-                        .HasColumnName("daily_work_hours");
-
                     b.Property<DateOnly>("HireDate")
                         .HasColumnType("date")
                         .HasColumnName("hire_date");
@@ -60,10 +56,7 @@ namespace WorkLogManager.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_employees");
 
-                    b.ToTable("employees", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_employees_daily_work_hours_positive", "daily_work_hours IS NULL OR daily_work_hours > 0");
-                        });
+                    b.ToTable("employees", (string)null);
                 });
 
             modelBuilder.Entity("WorkLogManager.Application.Entities.EmployeeWorkLog", b =>
@@ -92,6 +85,17 @@ namespace WorkLogManager.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("MonthClosingId")
                         .HasColumnType("uuid")
                         .HasColumnName("month_closing_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origin");
 
                     b.Property<DateTimeOffset>("StartDate")
                         .HasColumnType("timestamp with time zone")
@@ -158,37 +162,90 @@ namespace WorkLogManager.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("WorkLogManager.Application.Entities.SystemSettings", b =>
+            modelBuilder.Entity("WorkLogManager.Application.Entities.SystemParameter", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<decimal>("DefaultDailyWorkHours")
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Param")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("param");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("value");
+
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("value_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_system_parameters");
+
+                    b.HasIndex("Param", "Value")
+                        .IsUnique()
+                        .HasDatabaseName("ix_system_parameters_param_value");
+
+                    b.ToTable("system_parameters", (string)null);
+                });
+
+            modelBuilder.Entity("WorkLogManager.Application.Entities.WorkSchedulePeriod", b =>
+                {
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("numeric(5,2)")
-                        .HasDefaultValue(8.00m)
-                        .HasColumnName("default_daily_work_hours");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("DayOfWeek")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("day_of_week");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time")
+                        .HasColumnName("end_time");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time")
+                        .HasColumnName("start_time");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
 
                     b.HasKey("Id")
-                        .HasName("pk_system_settings");
+                        .HasName("pk_work_schedule_periods");
 
-                    b.ToTable("system_settings", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_system_settings_default_daily_work_hours_positive", "default_daily_work_hours > 0");
-                        });
+                    b.HasIndex("EmployeeId", "DayOfWeek")
+                        .HasDatabaseName("ix_work_schedule_periods_employee_id_day_of_week");
 
-                    b.HasData(
-                        new
+                    b.ToTable("work_schedule_periods", null, t =>
                         {
-                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
-                            DefaultDailyWorkHours = 8.00m,
-                            UpdatedAtUtc = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                            t.HasCheckConstraint("ck_work_schedule_periods_end_after_start", "end_time > start_time");
                         });
                 });
 
@@ -206,6 +263,15 @@ namespace WorkLogManager.Infrastructure.Persistence.Migrations
                         .HasForeignKey("MonthClosingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_employee_work_logs_month_closings_month_closing_id");
+                });
+
+            modelBuilder.Entity("WorkLogManager.Application.Entities.WorkSchedulePeriod", b =>
+                {
+                    b.HasOne("WorkLogManager.Application.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_work_schedule_periods_employees_employee_id");
                 });
 #pragma warning restore 612, 618
         }

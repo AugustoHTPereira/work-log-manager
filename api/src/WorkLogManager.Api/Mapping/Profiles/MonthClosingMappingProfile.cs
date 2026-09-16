@@ -24,5 +24,9 @@ public class MonthClosingMappingProfile : Profile
             .ForMember(dest => dest.Summaries, opt => opt.MapFrom(src => src.Summaries));
 
         CreateMap<EmployeeWorkLogGenerationSummary, EmployeeWorkLogGenerationSummaryResponse>();
+
+        CreateMap<MonthClosing, MonthClosingResponse>();
+
+        CreateMap<MonthClosingDeletionResult, DeleteMonthClosingResponse>();
     }
 }

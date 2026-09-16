@@ -39,6 +39,7 @@ aprovação**:
    git. Informe ao usuário que a implementação está pronta no working directory para
    revisão final e commit manual, e que todo o histórico da tarefa (report, plano,
    resumo de implementação, code review) ficou salvo em `.claude/plans/<task-id>/`.
+   Sugira uma mensagem de até 100 caracteres para commit ao usuário.
 
 Regra geral: em qualquer ponto de ambiguidade, prefira parar e perguntar ao usuário a
 assumir algo em nome dele.

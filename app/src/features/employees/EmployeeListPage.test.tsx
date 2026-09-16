@@ -27,7 +27,7 @@ function renderWithProviders(ui: ReactNode) {
 describe("EmployeeListPage", () => {
   it("renders employee rows and the create button", async () => {
     const employees: EmployeeSummary[] = [
-      { id: "1", name: "Jane Doe", role: "Developer", hireDate: "2020-01-01", dailyWorkHours: 8 },
+      { id: "1", name: "Jane Doe", role: "Developer", hireDate: "2020-01-01" },
     ]
     vi.mocked(getEmployees).mockResolvedValue(employees)
 

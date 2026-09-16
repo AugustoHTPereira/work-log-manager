@@ -28,24 +28,4 @@ public class EmployeeValidatorTests
 
         Assert.False(result.IsValid);
     }
-
-    [Fact]
-    public void Validate_NonPositiveDailyWorkHours_HasError()
-    {
-        var employee = EntityFactory.CreateEmployee(dailyWorkHours: 0m);
-
-        var result = _validator.Validate(employee);
-
-        Assert.False(result.IsValid);
-    }
-
-    [Fact]
-    public void Validate_NullDailyWorkHours_HasNoErrors()
-    {
-        var employee = EntityFactory.CreateEmployee(dailyWorkHours: null);
-
-        var result = _validator.Validate(employee);
-
-        Assert.True(result.IsValid);
-    }
 }

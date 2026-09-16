@@ -1,8 +1,8 @@
-import { Route, Routes } from "react-router-dom"
-import { Layout } from "@/components/Layout"
-import { EmployeeDetailPage } from "@/features/employees/EmployeeDetailPage"
-import { EmployeeListPage } from "@/features/employees/EmployeeListPage"
-import { SystemSettingsPage } from "@/features/settings/SystemSettingsPage"
+import { Route, Routes } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import { EmployeeDetailPage } from "@/features/employees/EmployeeDetailPage";
+import { EmployeeListPage } from "@/features/employees/EmployeeListPage";
+import { SystemSettingsPage } from "@/features/settings/SystemSettingsPage";
 
 function App() {
   return (
@@ -13,7 +13,7 @@ function App() {
         <Route path="/settings" element={<SystemSettingsPage />} />
       </Route>
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -8,4 +8,7 @@ public record EmployeeWorkLogResponse(
     WorkLogType Type,
     DateTimeOffset StartDate,
     DateTimeOffset EndDate,
-    long DurationSeconds);
+    long DurationSeconds,
+    Guid? MonthClosingId,
+    string? Note,
+    WorkLogOrigin Origin);

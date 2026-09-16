@@ -1,7 +1,16 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Bot,
+  Cog,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -18,7 +27,7 @@ import { useDeleteEmployee } from "./hooks/useDeleteEmployee";
 import { useEmployee } from "./hooks/useEmployee";
 import { WorkLogFormModal } from "../work-logs/WorkLogFormModal";
 import { useDeleteWorkLog } from "../work-logs/hooks/useDeleteWorkLog";
-import { Info } from "@/components/ui/info";
+import { useEmployeeWorkLogs } from "../work-logs/hooks/useEmployeeWorkLogs";
 import { formatDuration } from "@/lib/worklog-duration";
 import {
   DropdownMenu,
@@ -27,13 +36,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { WorkLogFiltersSheet } from "./WorkLogFiltersSheet";
+import {
+  parseWorkLogFiltersFromSearchParams,
+  workLogFiltersToApiFilters,
+  workLogFiltersToSearchParams,
+  type WorkLogFilters,
+} from "./workLogFilters";
+import { EmployeeWorkScheduleModal } from "./EmployeeWorkScheduleModal";
+import { useParam } from "@/hooks/use-param";
+import { formatDate } from "@/lib/date";
+import { intervalToDuration } from "date-fns";
 
 const workLogTypeLabels: Record<string, string> = {
   Overtime: "Hora extra",
@@ -52,11 +71,18 @@ const workLogTypeVariants: Record<string, Pick<BadgeProps, "variant">> = {
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: employee, isLoading } = useEmployee(id);
   const deleteEmployee = useDeleteEmployee();
   const deleteWorkLog = useDeleteWorkLog(id ?? "");
+  const allowManageClosedWorkLogs = useParam(
+    "allowManageClosedWorkLogs",
+    false,
+  );
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditWorkScheduleModalOpen, setIsEditWorkScheduleModalOpen] =
+    useState(false);
   const [isDeleteEmployeeDialogOpen, setIsDeleteEmployeeDialogOpen] =
     useState(false);
   const [workLogModal, setWorkLogModal] = useState<{
@@ -67,6 +93,29 @@ export function EmployeeDetailPage() {
   });
   const [workLogToDelete, setWorkLogToDelete] =
     useState<EmployeeWorkLog | null>(null);
+
+  const filters = useMemo(
+    () => parseWorkLogFiltersFromSearchParams(searchParams),
+    [searchParams],
+  );
+
+  useEffect(() => {
+    if (!searchParams.get("startDate") || !searchParams.get("endDate")) {
+      setSearchParams(workLogFiltersToSearchParams(filters), { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleApplyFilters = (nextFilters: WorkLogFilters) => {
+    setSearchParams(workLogFiltersToSearchParams(nextFilters));
+  };
+
+  const apiFilters = useMemo(
+    () => workLogFiltersToApiFilters(filters),
+    [filters],
+  );
+  const { data: workLogs } = useEmployeeWorkLogs(id, apiFilters);
+  const filteredWorkLogs = workLogs ?? [];
 
   if (isLoading) {
     return <p className="text-muted-foreground">Carregando...</p>;
@@ -91,8 +140,12 @@ export function EmployeeDetailPage() {
     try {
       await deleteWorkLog.mutateAsync(workLogToDelete.id);
       toast.success("Worklog excluído com sucesso.");
-    } catch {
-      toast.error("Não foi possível excluir o worklog.");
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Não foi possível excluir o worklog.";
+      toast.error(message);
     } finally {
       setWorkLogToDelete(null);
     }
@@ -103,7 +156,10 @@ export function EmployeeDetailPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{employee.name}</h1>
-          <p className="text-muted-foreground">{employee.role}</p>
+          <p className="text-muted-foreground text-sm">
+            {employee.role} admitido(a) em{" "}
+            {formatDate(employee.hireDate, "dd/MM/yyyy")}
+          </p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
@@ -115,14 +171,20 @@ export function EmployeeDetailPage() {
             <DropdownMenuContent>
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
-                  <Pencil className="size-4" />
+                  <Pencil />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setIsEditWorkScheduleModalOpen(true)}
+                >
+                  <Cog />
+                  Configurações
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
                   onClick={() => setIsDeleteEmployeeDialogOpen(true)}
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 />
                   Excluir
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -131,72 +193,84 @@ export function EmployeeDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 rounded-md border p-4 sm:grid-cols-3">
-        <Info
-          title="Data de admissão"
-          value={employee.hireDate}
-          description="Data de admissão do funcionário."
-        />
-        <Info
-          title="Horas/dia (específico)"
-          value={employee.dailyWorkHours ?? "-"}
-          description="Horas/dia específicas para este funcionário. Caso não esteja definido, o valor padrão da empresa será usado."
-        />
-        <Info
-          title="Horas/dia (efetivo)"
-          value={employee.effectiveDailyWorkHours ?? "-"}
-          description="Horas/dia efetivas do funcionário, considerando o valor específico ou o padrão da empresa."
-        />
-      </div>
-
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Worklogs</h2>
-          <Button
-            onClick={() => setWorkLogModal({ open: true })}
-            size="icon"
-            variant="outline"
-          >
-            <Plus className="size-4" />
-          </Button>
+          <div className="flex gap-2">
+            <WorkLogFiltersSheet
+              filters={filters}
+              onApply={handleApplyFilters}
+            />
+            <Button
+              onClick={() => setWorkLogModal({ open: true })}
+              size="icon"
+              variant="outline"
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
         </div>
 
-        {employee.workLogs.length === 0 && (
-          <p className="text-muted-foreground">Nenhum worklog registrado.</p>
+        {filteredWorkLogs.length === 0 && (
+          <p className="text-muted-foreground">
+            Nenhum worklog encontrado para o filtro selecionado.
+          </p>
         )}
 
-        {employee.workLogs.length > 0 && (
+        {filteredWorkLogs.length > 0 && (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[10%]">Data</TableHead>
-                <TableHead className="w-[70%]">Tipo</TableHead>
                 <TableHead className="w-[10%]">Duração</TableHead>
+                <TableHead className="w-[10%]">Tipo</TableHead>
+                <TableHead className="w-[50%]">Notas</TableHead>
                 <TableHead className="w-[10%] text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employee.workLogs.map((workLog) => (
+              {filteredWorkLogs.map((workLog) => (
                 <TableRow key={workLog.id}>
                   <TableCell>
                     <Tooltip>
                       <TooltipTrigger>
-                        {format(new Date(workLog.startDate), "dd/MM/yyyy")}
+                        {formatDate(
+                          new Date(workLog.startDate),
+                          "EEE dd/MM/yyyy",
+                        )}
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="flex items-center gap-1">
                           <span>
-                            {format(
+                            {formatDate(
                               new Date(workLog.startDate),
                               "dd/MM/yyyy HH:mm",
                             )}
                           </span>
                           <span>-</span>
                           <span>
-                            {format(
+                            {formatDate(
                               new Date(workLog.endDate),
                               "dd/MM/yyyy HH:mm",
                             )}
+                          </span>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        {formatDuration(workLog.durationSeconds)}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="flex items-center gap-1">
+                          <span>
+                            {formatDate(new Date(workLog.startDate), "HH:mm")}
+                          </span>
+                          <span>-</span>
+                          <span>
+                            {formatDate(new Date(workLog.endDate), "HH:mm")}
                           </span>
                         </div>
                       </TooltipContent>
@@ -208,39 +282,61 @@ export function EmployeeDetailPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        {formatDuration(workLog.durationSeconds)}
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="flex items-center gap-1">
-                          <span>
-                            {format(
-                              new Date(workLog.startDate),
-                              "dd/MM/yyyy HH:mm",
-                            )}
+                    {workLog.note ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block max-w-[220px] truncate text-muted-foreground">
+                            {workLog.note}
                           </span>
-                          <span>-</span>
-                          <span>
-                            {format(
-                              new Date(workLog.endDate),
-                              "dd/MM/yyyy HH:mm",
-                            )}
-                          </span>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
+                        </TooltipTrigger>
+                        <TooltipContent>{workLog.note}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="flex justify-end gap-2 py-0.5">
+                    {workLog.origin === "Automatic" && (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Bot className="size-3.5 text-blue-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Gerado automaticamente no fechamento de ponto.
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+
+                    {workLog.monthClosingId &&
+                      !allowManageClosedWorkLogs.value && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Lock className="size-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Vinculado ao fechamento do mês — não pode ser
+                            editado ou excluído.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          data-testid="work-log-row-menu-trigger"
+                        >
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuGroup>
                           <DropdownMenuItem
+                            disabled={
+                              Boolean(workLog.monthClosingId) &&
+                              !allowManageClosedWorkLogs.value
+                            }
                             onClick={() =>
                               setWorkLogModal({ open: true, workLog })
                             }
@@ -250,6 +346,10 @@ export function EmployeeDetailPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
+                            disabled={
+                              Boolean(workLog.monthClosingId) &&
+                              !allowManageClosedWorkLogs.value
+                            }
                             onClick={() => setWorkLogToDelete(workLog)}
                           >
                             <Trash2 className="size-4" />
@@ -274,7 +374,6 @@ export function EmployeeDetailPage() {
           name: employee.name,
           role: employee.role,
           hireDate: employee.hireDate,
-          dailyWorkHours: employee.dailyWorkHours,
         }}
       />
 
@@ -301,6 +400,12 @@ export function EmployeeDetailPage() {
         onOpenChange={(open) => setWorkLogModal({ open })}
         employeeId={id}
         workLog={workLogModal.workLog}
+      />
+
+      <EmployeeWorkScheduleModal
+        open={isEditWorkScheduleModalOpen}
+        onOpenChange={setIsEditWorkScheduleModalOpen}
+        employee={employee}
       />
     </div>
   );

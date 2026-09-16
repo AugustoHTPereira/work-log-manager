@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <!--
-      NU1903 audit note (see docs/padroes-desenvolvimento.md): AutoMapper is pinned at
+      NU1903 audit note (see .claude/docs/padroes-desenvolvimento.md): AutoMapper is pinned at
       13.0.1, the last version released under the MIT license before AutoMapper switched
       to the commercial/RPL1.5 license starting at 15.0.0. The only versions that fix the
       known high-severity DoS advisory (GHSA-rvv3-g6hj-g44x, uncontrolled recursion on

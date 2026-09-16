@@ -1,7 +1,9 @@
 using AutoMapper;
 using WorkLogManager.Api.Dtos.Employees;
+using WorkLogManager.Api.Dtos.WorkSchedules;
 using WorkLogManager.Application.Entities;
 using WorkLogManager.Application.UseCases.Employees;
+using WorkLogManager.Application.UseCases.WorkSchedules;
 
 namespace WorkLogManager.Api.Endpoints;
 
@@ -41,6 +43,28 @@ public static class EmployeesEndpoints
         {
             await useCase.ExecuteAsync(id, cancellationToken);
             return Results.NoContent();
+        });
+
+        group.MapGet("/{employeeId:guid}/work-schedule", async (
+            Guid employeeId,
+            GetEmployeeWorkScheduleUseCase useCase,
+            IMapper mapper,
+            CancellationToken cancellationToken) =>
+        {
+            var periods = await useCase.ExecuteAsync(employeeId, cancellationToken);
+            return Results.Ok(mapper.Map<IReadOnlyList<WorkSchedulePeriodResponse>>(periods));
+        });
+
+        group.MapPut("/{employeeId:guid}/work-schedule", async (
+            Guid employeeId,
+            UpdateWorkScheduleRequest request,
+            UpdateEmployeeWorkScheduleUseCase useCase,
+            IMapper mapper,
+            CancellationToken cancellationToken) =>
+        {
+            var periods = mapper.Map<IReadOnlyList<WorkSchedulePeriod>>(request.Periods);
+            var updated = await useCase.ExecuteAsync(employeeId, periods, cancellationToken);
+            return Results.Ok(mapper.Map<IReadOnlyList<WorkSchedulePeriodResponse>>(updated));
         });
 
         return app;

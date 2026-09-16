@@ -32,7 +32,6 @@ public class UpdateEmployeeUseCase
         existingEmployee.Name = employee.Name;
         existingEmployee.Role = employee.Role;
         existingEmployee.HireDate = employee.HireDate;
-        existingEmployee.DailyWorkHours = employee.DailyWorkHours;
         existingEmployee.Touch();
 
         await _employeeRepository.UpdateAsync(existingEmployee, cancellationToken);

@@ -36,10 +36,37 @@ public class EmployeeWorkLogRepository : IEmployeeWorkLogRepository
         return _dbContext.EmployeeWorkLogs.FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EmployeeWorkLog>> ListByEmployeeIdAsync(Guid employeeId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<EmployeeWorkLog>> ListByEmployeeIdAsync(
+        Guid employeeId,
+        DateTimeOffset? startDateInclusive = null,
+        DateTimeOffset? endDateInclusive = null,
+        WorkLogType? type = null,
+        WorkLogOrigin? origin = null,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.EmployeeWorkLogs
-            .Where(w => w.EmployeeId == employeeId)
+        var query = _dbContext.EmployeeWorkLogs.Where(w => w.EmployeeId == employeeId);
+
+        if (startDateInclusive is not null)
+        {
+            query = query.Where(w => w.StartDate >= startDateInclusive);
+        }
+
+        if (endDateInclusive is not null)
+        {
+            query = query.Where(w => w.StartDate <= endDateInclusive);
+        }
+
+        if (type is not null)
+        {
+            query = query.Where(w => w.Type == type);
+        }
+
+        if (origin is not null)
+        {
+            query = query.Where(w => w.Origin == origin);
+        }
+
+        return await query
             .OrderByDescending(w => w.StartDate)
             .ToListAsync(cancellationToken);
     }
@@ -59,5 +86,36 @@ public class EmployeeWorkLogRepository : IEmployeeWorkLogRepository
         return await _dbContext.EmployeeWorkLogs
             .Where(w => w.Type == type && w.StartDate >= rangeStartInclusive && w.StartDate < rangeEndExclusive)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<EmployeeWorkLog>> ListUnclosedByDateRangeAsync(
+        DateTimeOffset rangeStartInclusive,
+        DateTimeOffset rangeEndExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.EmployeeWorkLogs
+            .Where(w => w.MonthClosingId == null && w.StartDate >= rangeStartInclusive && w.StartDate < rangeEndExclusive)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateRangeAsync(IEnumerable<EmployeeWorkLog> workLogs, CancellationToken cancellationToken = default)
+    {
+        _dbContext.EmployeeWorkLogs.UpdateRange(workLogs);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<EmployeeWorkLog>> ListByMonthClosingIdAsync(
+        Guid monthClosingId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.EmployeeWorkLogs
+            .Where(w => w.MonthClosingId == monthClosingId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task DeleteRangeAsync(IEnumerable<EmployeeWorkLog> workLogs, CancellationToken cancellationToken = default)
+    {
+        _dbContext.EmployeeWorkLogs.RemoveRange(workLogs);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

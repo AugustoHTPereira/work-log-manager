@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { employeeQueryKey } from "@/features/employees/hooks/useEmployee"
+import { employeeWorkLogsQueryKey } from "./useEmployeeWorkLogs"
 import { deleteWorkLog } from "@/lib/api/workLogs"
 
 export function useDeleteWorkLog(employeeId: string) {
@@ -8,7 +8,7 @@ export function useDeleteWorkLog(employeeId: string) {
   return useMutation({
     mutationFn: (workLogId: string) => deleteWorkLog(employeeId, workLogId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: employeeQueryKey(employeeId) })
+      queryClient.invalidateQueries({ queryKey: employeeWorkLogsQueryKey(employeeId) })
     },
   })
 }

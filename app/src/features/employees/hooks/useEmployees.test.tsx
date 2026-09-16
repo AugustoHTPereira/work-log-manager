@@ -24,7 +24,7 @@ function createWrapper() {
 describe("useEmployees", () => {
   it("returns the employees returned by the API layer", async () => {
     const employees: EmployeeSummary[] = [
-      { id: "1", name: "Jane Doe", role: "Developer", hireDate: "2020-01-01", dailyWorkHours: 8 },
+      { id: "1", name: "Jane Doe", role: "Developer", hireDate: "2020-01-01" },
     ]
     vi.mocked(getEmployees).mockResolvedValue(employees)
 

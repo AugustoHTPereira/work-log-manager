@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ApiError } from "@/lib/api/client"
 import type { MonthClosingResult } from "@/lib/api/types"
 import { useCloseMonth } from "./hooks/useCloseMonth"
+import { useMonthClosingReport } from "./hooks/useMonthClosingReport"
 
 interface MonthCloseModalProps {
   open: boolean
@@ -42,6 +43,7 @@ function parseMonthValue(value: string): { month: number; year: number } | null 
 
 export function MonthCloseModal({ open, onOpenChange }: MonthCloseModalProps) {
   const closeMonth = useCloseMonth()
+  const downloadReport = useMonthClosingReport()
 
   const [step, setStep] = useState<"select" | "summary">("select")
   const [monthValue, setMonthValue] = useState("")
@@ -70,10 +72,28 @@ export function MonthCloseModal({ open, onOpenChange }: MonthCloseModalProps) {
       const closingResult = await closeMonth.mutateAsync(parsed)
       setResult(closingResult)
       setStep("summary")
+
+      try {
+        await downloadReport.mutateAsync({
+          id: closingResult.id,
+          month: closingResult.month,
+          year: closingResult.year,
+        })
+      } catch {
+        toast.error("Fechamento concluído, mas não foi possível baixar o PDF automaticamente.")
+      }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Não foi possível fechar o mês."
       toast.error(message)
     }
+  }
+
+  const handleDownloadReport = () => {
+    if (!result) {
+      return
+    }
+
+    downloadReport.mutate({ id: result.id, month: result.month, year: result.year })
   }
 
   const handleClose = () => {
@@ -140,6 +160,13 @@ export function MonthCloseModal({ open, onOpenChange }: MonthCloseModalProps) {
             </Table>
 
             <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={handleDownloadReport}
+                disabled={downloadReport.isPending}
+              >
+                Baixar PDF
+              </Button>
               <Button onClick={handleClose}>Fechar</Button>
             </DialogFooter>
           </>

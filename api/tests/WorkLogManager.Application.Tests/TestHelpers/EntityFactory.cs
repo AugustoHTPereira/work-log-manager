@@ -14,7 +14,6 @@ public static class EntityFactory
         string name = "Jane Doe",
         string role = "Developer",
         DateOnly? hireDate = null,
-        decimal? dailyWorkHours = 8m,
         Guid? id = null)
     {
         var now = DateTimeOffset.UtcNow;
@@ -24,7 +23,6 @@ public static class EntityFactory
             Name = name,
             Role = role,
             HireDate = hireDate ?? new DateOnly(2020, 1, 1),
-            DailyWorkHours = dailyWorkHours,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
@@ -35,7 +33,9 @@ public static class EntityFactory
         WorkLogType type = WorkLogType.Overtime,
         DateTimeOffset? startDate = null,
         DateTimeOffset? endDate = null,
-        Guid? id = null)
+        Guid? id = null,
+        string? note = null,
+        WorkLogOrigin origin = WorkLogOrigin.Manual)
     {
         var start = startDate ?? new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero);
         var end = endDate ?? start.AddHours(1);
@@ -45,10 +45,12 @@ public static class EntityFactory
             Id = id ?? Guid.NewGuid(),
             EmployeeId = employeeId ?? Guid.NewGuid(),
             Type = type,
+            Origin = origin,
             StartDate = start,
             EndDate = end,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Note = note,
         };
 
         workLog.CalculateDuration();
@@ -56,12 +58,23 @@ public static class EntityFactory
         return workLog;
     }
 
-    public static SystemSettings CreateSystemSettings(decimal defaultDailyWorkHours = 8m)
+    public static WorkSchedulePeriod CreateWorkSchedulePeriod(
+        Guid? employeeId = null,
+        DayOfWeek dayOfWeek = DayOfWeek.Monday,
+        TimeOnly? startTime = null,
+        TimeOnly? endTime = null,
+        Guid? id = null)
     {
-        return new SystemSettings
+        var now = DateTimeOffset.UtcNow;
+        return new WorkSchedulePeriod
         {
-            DefaultDailyWorkHours = defaultDailyWorkHours,
-            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Id = id ?? Guid.NewGuid(),
+            EmployeeId = employeeId,
+            DayOfWeek = dayOfWeek,
+            StartTime = startTime ?? new TimeOnly(8, 0),
+            EndTime = endTime ?? new TimeOnly(12, 0),
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
         };
     }
 

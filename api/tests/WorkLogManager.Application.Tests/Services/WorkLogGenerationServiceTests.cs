@@ -46,8 +46,8 @@ public class WorkLogGenerationServiceTests
         Assert.Null(workday.BreakPeriod);
 
         var period = workday.RegularAttendancePeriods[0];
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 7, 2, 0, TimeSpan.Zero), period.Start);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 10, 4, 0, TimeSpan.Zero), period.End);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 7, 2, 0, TimeSpan.FromHours(-3)), period.Start);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 10, 4, 0, TimeSpan.FromHours(-3)), period.End);
 
         var workedMinutes = (period.End - period.Start).TotalMinutes;
         Assert.True(workedMinutes >= 3d * 60);
@@ -65,8 +65,8 @@ public class WorkLogGenerationServiceTests
         Assert.Null(workday.BreakPeriod);
 
         var period = workday.RegularAttendancePeriods[0];
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 6, 59, 0, TimeSpan.Zero), period.Start);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 3, 0, TimeSpan.Zero), period.End);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 6, 59, 0, TimeSpan.FromHours(-3)), period.Start);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 3, 0, TimeSpan.FromHours(-3)), period.End);
     }
 
     [Fact]
@@ -86,12 +86,12 @@ public class WorkLogGenerationServiceTests
         var afternoon = workday.RegularAttendancePeriods[1];
         var breakPeriod = workday.BreakPeriod!.Value;
 
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 7, 0, 0, TimeSpan.Zero), morning.Start);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 0, 0, TimeSpan.Zero), morning.End);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 0, 0, TimeSpan.Zero), breakPeriod.Start);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 12, 0, 0, TimeSpan.Zero), breakPeriod.End);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 12, 0, 0, TimeSpan.Zero), afternoon.Start);
-        Assert.Equal(new DateTimeOffset(2026, 1, 5, 14, 2, 0, TimeSpan.Zero), afternoon.End);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 7, 0, 0, TimeSpan.FromHours(-3)), morning.Start);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 0, 0, TimeSpan.FromHours(-3)), morning.End);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 11, 0, 0, TimeSpan.FromHours(-3)), breakPeriod.Start);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 12, 0, 0, TimeSpan.FromHours(-3)), breakPeriod.End);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 12, 0, 0, TimeSpan.FromHours(-3)), afternoon.Start);
+        Assert.Equal(new DateTimeOffset(2026, 1, 5, 14, 2, 0, TimeSpan.FromHours(-3)), afternoon.End);
 
         var workedMinutes = (morning.End - morning.Start).TotalMinutes + (afternoon.End - afternoon.Start).TotalMinutes;
         Assert.Equal(6d * 60 + 2, workedMinutes);
@@ -234,5 +234,18 @@ public class WorkLogGenerationServiceTests
         var workday = service.GenerateWorkday(Date, 2m);
 
         Assert.Null(workday.BreakPeriod);
+    }
+
+    [Fact]
+    public void GenerateWorkday_BaseStart_IsSevenAmBusinessLocalTime()
+    {
+        var randomProvider = new QueuedRandomProvider(0, 0, 0, 0);
+        var service = new WorkLogGenerationService(randomProvider);
+
+        var workday = service.GenerateWorkday(Date, 6m);
+
+        var period = workday.RegularAttendancePeriods[0];
+        Assert.Equal(TimeSpan.Zero, period.Start.Offset);
+        Assert.Equal(7, TimeZoneInfo.ConvertTime(period.Start, BusinessTimeZone.Value).Hour);
     }
 }

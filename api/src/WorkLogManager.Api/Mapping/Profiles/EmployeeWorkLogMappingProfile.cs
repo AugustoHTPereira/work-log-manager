@@ -17,7 +17,8 @@ public class EmployeeWorkLogMappingProfile : Profile
             .ForMember(dest => dest.DurationSeconds, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAtUtc, opt => opt.Ignore())
             .ForMember(dest => dest.UpdatedAtUtc, opt => opt.Ignore())
-            .ForMember(dest => dest.MonthClosingId, opt => opt.Ignore());
+            .ForMember(dest => dest.MonthClosingId, opt => opt.Ignore())
+            .ForMember(dest => dest.Origin, opt => opt.Ignore());
 
         CreateMap<UpdateEmployeeWorkLogRequest, EmployeeWorkLog>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -25,7 +26,8 @@ public class EmployeeWorkLogMappingProfile : Profile
             .ForMember(dest => dest.DurationSeconds, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAtUtc, opt => opt.Ignore())
             .ForMember(dest => dest.UpdatedAtUtc, opt => opt.Ignore())
-            .ForMember(dest => dest.MonthClosingId, opt => opt.Ignore());
+            .ForMember(dest => dest.MonthClosingId, opt => opt.Ignore())
+            .ForMember(dest => dest.Origin, opt => opt.Ignore());
 
         CreateMap<EmployeeWorkLog, EmployeeWorkLogResponse>();
     }

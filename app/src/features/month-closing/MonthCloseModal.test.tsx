@@ -8,6 +8,7 @@ import { MonthCloseModal } from "./MonthCloseModal"
 
 vi.mock("@/lib/api/monthClosings", () => ({
   closeMonth: vi.fn(),
+  getMonthClosingReport: vi.fn(),
 }))
 
 const toastError = vi.fn()
@@ -15,7 +16,7 @@ vi.mock("sonner", () => ({
   toast: { error: (...args: unknown[]) => toastError(...args) },
 }))
 
-import { closeMonth } from "@/lib/api/monthClosings"
+import { closeMonth, getMonthClosingReport } from "@/lib/api/monthClosings"
 
 function renderWithProviders(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -42,12 +43,16 @@ function buildResult(overrides: Partial<MonthClosingResult> = {}): MonthClosingR
 describe("MonthCloseModal", () => {
   beforeEach(() => {
     vi.setSystemTime(new Date("2026-09-14T12:00:00.000Z"))
+    vi.mocked(getMonthClosingReport).mockResolvedValue(new Blob(["pdf-content"]))
+    URL.createObjectURL = vi.fn(() => "blob:mock-url")
+    URL.revokeObjectURL = vi.fn()
   })
 
   afterEach(() => {
     vi.useRealTimers()
     toastError.mockClear()
     vi.mocked(closeMonth).mockReset()
+    vi.mocked(getMonthClosingReport).mockReset()
   })
 
   it("defaults the month selector to the previous month and caps it with `max`", () => {
@@ -84,5 +89,58 @@ describe("MonthCloseModal", () => {
     })
 
     expect(screen.getByRole("button", { name: /prosseguir/i })).toBeInTheDocument()
+  })
+
+  it("automatically downloads the report after a successful closing", async () => {
+    vi.mocked(closeMonth).mockResolvedValue(buildResult())
+
+    renderWithProviders(<MonthCloseModal open onOpenChange={() => {}} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /prosseguir/i }))
+
+    await screen.findByText("Jane Doe")
+
+    await waitFor(() => {
+      expect(getMonthClosingReport).toHaveBeenCalledWith("closing-1")
+    })
+  })
+
+  it("shows a separate error toast if the automatic download fails, without undoing the closing", async () => {
+    vi.mocked(closeMonth).mockResolvedValue(buildResult())
+    vi.mocked(getMonthClosingReport).mockRejectedValue(new ApiError("Download failed.", 500))
+
+    renderWithProviders(<MonthCloseModal open onOpenChange={() => {}} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /prosseguir/i }))
+
+    await screen.findByText("Jane Doe")
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "Fechamento concluído, mas não foi possível baixar o PDF automaticamente.",
+      )
+    })
+
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument()
+  })
+
+  it("downloads the report again when the 'Baixar PDF' button is clicked", async () => {
+    vi.mocked(closeMonth).mockResolvedValue(buildResult())
+
+    renderWithProviders(<MonthCloseModal open onOpenChange={() => {}} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /prosseguir/i }))
+
+    await screen.findByText("Jane Doe")
+
+    await waitFor(() => {
+      expect(getMonthClosingReport).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: /baixar pdf/i }))
+
+    await waitFor(() => {
+      expect(getMonthClosingReport).toHaveBeenCalledTimes(2)
+    })
   })
 })

@@ -19,6 +19,7 @@
       entity instances/assert on mutated state without a public setter surface.
     -->
     <InternalsVisibleTo Include="WorkLogManager.Application.Tests" />
+    <InternalsVisibleTo Include="WorkLogManager.Infrastructure.Tests" />
   </ItemGroup>
 
 </Project>
