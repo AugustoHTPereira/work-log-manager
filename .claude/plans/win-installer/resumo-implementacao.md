@@ -353,3 +353,63 @@ que `sc.exe qc WorkLogManagerApi`/inspeção do registro mostram o valor `Enviro
 correto após uma instalação real.
 Nenhum arquivo `.cs` foi tocado neste ajuste; não houve necessidade de rodar
 `dotnet test`.
+
+## Bug fix: `installer/build.ps1` usava `npm ci` contra o lockfile errado
+
+### Causa raiz
+O repositório tem dois lockfiles em `app/`: `pnpm-lock.yaml` (o mantido de fato —
+atualizado a cada instalação de dependência via `pnpm`/`npx shadcn add` ao longo da
+sessão) e `package-lock.json` (parado, desatualizado). O `installer/build.ps1` foi
+escrito originalmente usando `npm ci`, que instala a partir de `package-lock.json` — e
+esse lockfile estava fora de sincronia com `app/package.json` (faltavam `cmdk@1.1.1` e
+`date-fns@4.4.0`, entre outros pacotes instalados depois via `pnpm`). Resultado: o job
+`win-installer` do GitHub Actions falhava em `npm ci` com "can only install packages
+when your package.json and package-lock.json ... are in sync".
+
+### Correção aplicada
+- `installer/build.ps1`:
+  - `npm ci` → `pnpm install --frozen-lockfile` (equivalente estrito do `npm ci` no
+    pnpm: falha se `pnpm-lock.yaml` estiver desatualizado em relação a
+    `app/package.json`, preservando a mesma garantia de build reprodutível).
+  - `npm run build` → `pnpm run build`.
+  - Comentário do cabeçalho (`.DESCRIPTION`) atualizado de "Node.js/npm" para
+    "Node.js/pnpm".
+  - Não havia outras ocorrências de `npm`/`npx` no arquivo.
+- `.github/workflows/build-installer.yml`:
+  - Adicionado o passo `pnpm/action-setup@v4` (`version: 10`, alinhado com a versão de
+    pnpm usada localmente — `app/package.json` não declara `packageManager`, então a
+    versão precisa ser explícita) antes do `actions/setup-node@v4`, para que o runner
+    Windows tenha o binário `pnpm` disponível (sem isso, `pnpm install` falharia com
+    "command not found").
+  - `actions/setup-node@v4`: `cache: "npm"` + `cache-dependency-path:
+    app/package-lock.json` → `cache: "pnpm"` + `cache-dependency-path:
+    app/pnpm-lock.yaml`, para que o cache de dependências do Actions passe a chavear
+    pelo lockfile realmente usado no build.
+- `installer/README.md`: pré-requisito "Node.js (LTS) e npm" atualizado para "Node.js
+  (LTS) e pnpm", com link para as instruções de instalação do pnpm.
+- **Não** removido `app/package-lock.json` — decisão mantida de tasks anteriores de não
+  apagar nenhum lockfile por conta própria; apenas parou de ser usado no processo de
+  build do instalador.
+
+### Validação feita
+- `pnpm install --frozen-lockfile` rodado localmente em `app/` (macOS): sucesso,
+  "Lockfile is up to date, resolution step is skipped" — confirma que `pnpm-lock.yaml`
+  está de fato em sincronia com `app/package.json` (ao contrário do `package-lock.json`
+  antigo), validando a mesma lógica de `--frozen-lockfile` que rodará no runner
+  Windows.
+- `pnpm run build` rodado localmente em `app/`: **falhou**, mas por um motivo
+  inteiramente não relacionado a este bug fix — dois erros de `tsc` pré-existentes no
+  repositório (não introduzidos por esta alteração; confirmado via `git status`, que
+  não mostra nenhuma modificação nesses arquivos):
+  - `src/features/employees/EmployeeDetailPage.tsx(55,1)`: `TS6133` —
+    `intervalToDuration` importado e nunca usado.
+  - `src/hooks/use-param.ts(18,12)`: `TS2322` — incompatibilidade de tipo no retorno.
+  Esses erros já existiam no código publicado (commit `2f009c9`) e são ortogonais ao
+  problema de lockfile relatado; corrigi-los está fora do escopo deste bug fix
+  (npm→pnpm no instalador) e não foram tocados aqui. **Sinalizando explicitamente**: o
+  build do instalador continuará falhando em CI até que esses dois erros de TypeScript
+  sejam corrigidos separadamente — isso deve ser tratado como uma tarefa própria antes
+  da próxima tentativa de gerar um release.
+- O restante do pipeline (`dotnet publish`, cópia para `wwwroot`, compilação com Inno
+  Setup) permanece não validável neste ambiente (macOS/Linux, sem Inno Setup/Windows),
+  como já documentado nas seções anteriores deste resumo.

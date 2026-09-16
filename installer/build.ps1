@@ -6,7 +6,7 @@
     the API's wwwroot, then compiles the Inno Setup installer.
 
 .DESCRIPTION
-    Must be run on Windows, with the .NET 10 SDK, Node.js/npm and Inno Setup (ISCC.exe)
+    Must be run on Windows, with the .NET 10 SDK, Node.js/pnpm and Inno Setup (ISCC.exe)
     installed. See installer/README.md for setup instructions.
 
 .PARAMETER Version
@@ -49,11 +49,11 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed." }
 Write-Host "=== 3/4: Building front-end and copying to wwwroot ===" -ForegroundColor Cyan
 Push-Location $AppDir
 try {
-    npm ci
-    if ($LASTEXITCODE -ne 0) { throw "npm ci failed." }
+    pnpm install --frozen-lockfile
+    if ($LASTEXITCODE -ne 0) { throw "pnpm install failed." }
 
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed." }
+    pnpm run build
+    if ($LASTEXITCODE -ne 0) { throw "pnpm run build failed." }
 }
 finally {
     Pop-Location

@@ -14,7 +14,7 @@ cutting a release).
 ## Prerequisites (Windows machine)
 
 1. **.NET 10 SDK** — https://dotnet.microsoft.com/download
-2. **Node.js** (LTS) and npm — https://nodejs.org
+2. **Node.js** (LTS) and **pnpm** — https://nodejs.org, https://pnpm.io/installation
 3. **Inno Setup 6** — https://jrsoftware.org/isinfo.php (installs `ISCC.exe`, the
    command-line compiler used by `build.ps1`)
 
