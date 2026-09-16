@@ -1,4 +1,4 @@
-# Stack e convenções — .NET 10 + React (shadcn) + PostgreSQL
+# Stack e convenções — .NET 10 + React (shadcn) + SQLite
 
 Lido pelos agentes `analista-tecnico`, `desenvolvedor` e `revisor` deste repositório.
 Ajuste os pontos marcados conforme a realidade real do projeto.
@@ -81,9 +81,21 @@ Reports, planos e reviews continuam em português.
   framework de teste (ex.: Vitest + Testing Library) — os valores acima são só um
   ponto de partida.
 
-## PostgreSQL
+## SQLite
+- Provider `Microsoft.EntityFrameworkCore.Sqlite`, usado em todos os ambientes
+  (desenvolvimento e produção) — sem servidor de banco separado, um único arquivo `.db`
+  local por ambiente.
 - Tabelas em snake_case, plural (ex.: `users`, `event_registrations`), conforme
   convenção configurada no EF Core — não hardcode nome de coluna manualmente se a
   convenção global já resolve.
 - Toda tabela nova precisa de chave primária explícita e, quando fizer sentido,
   constraints de integridade (FK, unique, not null) definidas na migration.
+- Evite `HasColumnType` com tipos específicos de outro provider (ex.: `date`/`time` do
+  Postgres) — SQLite só tem 5 affinities nativas (`TEXT`, `NUMERIC`, `INTEGER`, `REAL`,
+  `BLOB`); deixe o provider inferir a conversão a partir do tipo CLR (`DateOnly`,
+  `TimeOnly`, `DateTimeOffset`, `Guid`, etc.).
+- O arquivo de banco fica **fora do controle de versão**: em desenvolvimento, dentro de
+  `api/src/WorkLogManager.Api/App_Data/` (gitignored); em produção (instalador Windows),
+  em `%ProgramData%\WorkLogManager\`. O próprio processo cria o arquivo e aplica as
+  migrations pendentes via `Database.Migrate()` no startup — não há passo manual de
+  provisionamento de banco.

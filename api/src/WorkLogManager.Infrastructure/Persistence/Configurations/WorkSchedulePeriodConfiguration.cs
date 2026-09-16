@@ -22,11 +22,9 @@ public class WorkSchedulePeriodConfiguration : IEntityTypeConfiguration<WorkSche
             .IsRequired();
 
         builder.Property(p => p.StartTime)
-            .HasColumnType("time")
             .IsRequired();
 
         builder.Property(p => p.EndTime)
-            .HasColumnType("time")
             .IsRequired();
 
         builder.Property(p => p.CreatedAtUtc)

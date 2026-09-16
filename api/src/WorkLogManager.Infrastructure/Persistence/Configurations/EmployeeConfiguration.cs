@@ -21,7 +21,6 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .IsRequired();
 
         builder.Property(e => e.HireDate)
-            .HasColumnType("date")
             .IsRequired();
 
         builder.Property(e => e.CreatedAtUtc)

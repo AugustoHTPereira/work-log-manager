@@ -7,7 +7,14 @@
   <ItemGroup>
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.4" />
+    <!--
+      NU1903 audit note: Microsoft.EntityFrameworkCore.Sqlite 10.0.4 transitively pins
+      SQLitePCLRaw.lib.e_sqlite3 2.1.11, which has a known high-severity advisory
+      (GHSA-2m69-gcr7-jv3q, CVE-2025-6965 — vulnerable bundled SQLite before 3.50.2).
+      Pinned directly to 3.53.3 (fixed) to override the transitive version.
+    -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <!--
       QuestPDF Community license note (see the approved development plan for the
       "month-closing-pdf" task): free for companies below ~USD 1 million/year revenue or

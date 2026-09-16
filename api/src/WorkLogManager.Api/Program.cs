@@ -27,6 +27,8 @@ const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseWindowsService();
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddAutoMapper(typeof(EmployeeMappingProfile).Assembly);
@@ -34,7 +36,7 @@ builder.Services.AddAutoMapper(typeof(EmployeeMappingProfile).Assembly);
 builder.Services.AddValidatorsFromAssembly(typeof(EmployeeValidator).Assembly);
 
 builder.Services.AddDbContext<WorkLogManagerDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("WorkLogManagerDb"))
+    options.UseSqlite(builder.Configuration.GetConnectionString("WorkLogManagerDb"))
         .UseSnakeCaseNamingConvention());
 
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
@@ -92,6 +94,12 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<WorkLogManagerDbContext>();
+    dbContext.Database.Migrate();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -103,11 +111,16 @@ app.UseHttpsRedirection();
 
 app.UseCors(FrontendCorsPolicy);
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapEmployeesEndpoints();
 app.MapEmployeeWorkLogsEndpoints();
 app.MapWorkScheduleEndpoints();
 app.MapMonthClosingsEndpoints();
 app.MapSystemParametersEndpoints();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

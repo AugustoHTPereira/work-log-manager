@@ -483,6 +483,13 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
+# SQLite local development database (api/)
+api/src/WorkLogManager.Api/App_Data/*.db
+
+# Windows installer build artifacts (installer/)
+installer/publish/
+installer/output/
+
 
 # === Node / Vite (app/) ===
 node_modules/

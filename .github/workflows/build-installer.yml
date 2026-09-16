@@ -1,0 +1,78 @@
+name: Build Windows Installer
+
+# Builds the WorkLogManager Windows installer (.exe) and attaches it as an asset to a
+# published GitHub release. Also supports manual runs (workflow_dispatch) for testing
+# the build pipeline without publishing a release — in that case the resulting .exe is
+# only uploaded as a workflow artifact, not attached to any release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to stamp on the installer (e.g. 1.0.0). Only used for manual runs."
+        required: false
+        default: "0.0.0-dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build-installer:
+    # Inno Setup (ISCC.exe) only runs on Windows, and the installer itself is a native
+    # Windows executable — this job cannot run on ubuntu-latest/macos-latest.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+        shell: pwsh
+
+      - name: Determine installer version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "release") {
+            $tag = "${{ github.event.release.tag_name }}"
+            $version = $tag -replace "^v", ""
+          } else {
+            $version = "${{ inputs.version }}"
+            if ([string]::IsNullOrWhiteSpace($version)) {
+              $version = "0.0.0-dev"
+            }
+          }
+          Write-Host "Resolved installer version: $version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build installer
+        shell: pwsh
+        run: ./installer/build.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorkLogManagerSetup-${{ steps.version.outputs.version }}
+          path: installer/output/WorkLogManagerSetup-*.exe
+          if-no-files-found: error
+
+      - name: Attach installer to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: installer/output/WorkLogManagerSetup-*.exe
