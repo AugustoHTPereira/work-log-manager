@@ -413,3 +413,93 @@ when your package.json and package-lock.json ... are in sync".
 - O restante do pipeline (`dotnet publish`, cópia para `wwwroot`, compilação com Inno
   Setup) permanece não validável neste ambiente (macOS/Linux, sem Inno Setup/Windows),
   como já documentado nas seções anteriores deste resumo.
+
+## Bug fix: dois erros de TypeScript pré-existentes bloqueando `pnpm run build`
+
+Esses dois erros (sinalizados no bug fix anterior acima e em várias outras tasks ao
+longo da sessão) foram finalmente corrigidos.
+
+### 1. `app/src/features/employees/EmployeeDetailPage.tsx(55,1)` — `TS6133`
+
+**Causa raiz**: `intervalToDuration` (de `date-fns`) era um import morto. Investiguei o
+uso de duração/tempo em todo o arquivo: a única exibição de duração de worklog na
+tabela usa `formatDuration(workLog.durationSeconds)` (de `@/lib/worklog-duration.ts`),
+uma função própria do projeto que já formata segundos totais em `"1d 2h 30m"` sem
+depender de `date-fns` — não há nenhum cálculo de duração incompleto ou local próximo à
+linha 55 que devesse usar `intervalToDuration`. Concluí que era resíduo de uma
+refatoração anterior que passou a usar `formatDuration` e deixou o import não removido.
+
+**Correção**: removida a linha `import { intervalToDuration } from "date-fns";` de
+`EmployeeDetailPage.tsx`. Nenhuma outra alteração no arquivo.
+
+### 2. `app/src/hooks/use-param.ts(18,12)` — `TS2322`
+
+**Causa raiz**: `useParam(param: string, ...)` indexava o contexto
+(`ParamProviderType`, de `@/components/ParamProvider.tsx`) via
+`context[param as keyof typeof context]`. Como `param` era tipado como `string`
+genérico, `keyof ParamProviderType` inclui as três chaves do contexto —
+`allowManageClosedWorkLogs: boolean`, `isLoading: boolean` e
+`raw: { [key: string]: string | undefined }` — então o TypeScript inferia o tipo do
+valor lido como a união de todos os tipos possíveis, incluindo o objeto `raw`, que não
+é atribuível a `string | number | boolean | undefined` (o tipo de retorno declarado do
+hook).
+
+**Correção aplicada**: em vez de silenciar com `as any`/`@ts-ignore` (avaliado e
+descartado — mascararia um problema real: o hook nunca deveria aceitar `"raw"` ou
+`"isLoading"` como `param`, já que não fazem sentido para o uso pretendido de
+"ler um parâmetro de sistema com fallback"), restringi a assinatura à interseção certa:
+```ts
+type ParamKey = Exclude<keyof ParamProviderType, "raw" | "isLoading">;
+
+export function useParam(
+  param: ParamKey,
+  defaultValue: string | boolean | number,
+): { value: string | boolean | number | undefined } {
+  ...
+  const value = context[param];
+  return { value: value !== undefined ? value : defaultValue };
+}
+```
+Com `ParamKey` restrito (hoje, só `"allowManageClosedWorkLogs"`), `context[param]`
+resolve para `boolean`, compatível com o tipo de retorno declarado, sem nenhum cast.
+Isso também melhora a segurança de tipo do único call site
+(`EmployeeDetailPage.tsx`, `useParam("allowManageClosedWorkLogs", false)`): passar uma
+string arbitrária como `"raw"` agora é erro de compilação, o que é o comportamento
+correto.
+
+### Validação feita
+- `pnpm run build` (`tsc -b && vite build`) em `app/`: **sucesso**, sem nenhum erro de
+  TypeScript, gerando `dist/` normalmente.
+- `npx tsc --noEmit`: sem erros.
+- `npx vitest run`: 82/91 aprovados — as 9 falhas remanescentes, em exatamente os 3
+  arquivos já conhecidos e fora de escopo (`EmployeeListPage.test.tsx`,
+  `workLogFilters.test.ts`, `EmployeeDetailPage.test.tsx`), continuam falhando pelos
+  mesmos motivos de sempre (não relacionados a este fix). Inspecionei especificamente as
+  falhas de `EmployeeDetailPage.test.tsx`: o erro é `"useParam must be used within a
+  ParamProvider"`, ou seja, falha de setup de teste (o teste renderiza a página sem
+  envolvê-la em `ParamProvider`), não um erro de tipo — confirmando que `vitest`
+  realmente não roda `tsc -b` (usa apenas transformação via esbuild/vite) e que essas
+  falhas já existiam antes e são inteiramente ortogonais aos dois bugs corrigidos aqui.
+- `pnpm run lint` (`oxlint`): 0 erros; apenas warnings pré-existentes e não relacionados
+  (`react(only-export-components)`, `react(set-state-in-effect)`) em arquivos não
+  tocados por este fix.
+- Cadeia completa de build do instalador, reproduzindo os passos de
+  `installer/build.ps1` manualmente (exceto a compilação do `.iss`, que exige Windows +
+  Inno Setup):
+  - `pnpm install --frozen-lockfile` em `app/`: sucesso ("Lockfile is up to date").
+  - `pnpm run build` em `app/`: sucesso (ver acima).
+  - `dotnet publish api/src/WorkLogManager.Api -c Release -r win-x64 --self-contained
+    true -p:PublishSingleFile=false -o <pasta temporária>`: sucesso, publicando o
+    executável self-contained `win-x64` normalmente (único warning é o `NU1903`
+    pré-existente e já documentado do AutoMapper, sem relação com este fix).
+  - Confirmado, portanto, que a cadeia `pnpm install --frozen-lockfile` → `pnpm run
+    build` → `dotnet publish` (exatamente os passos 2 e 3 de `build.ps1`) roda de ponta
+    a ponta sem erro neste ambiente — o job `win-installer` do GitHub Actions deve voltar
+    a passar até a etapa de Inno Setup (não testável fora de Windows).
+
+### Arquivos alterados
+- `app/src/features/employees/EmployeeDetailPage.tsx`: removido import morto
+  `intervalToDuration`.
+- `app/src/hooks/use-param.ts`: `param: string` → `param: ParamKey` (tipo derivado de
+  `ParamProviderType`, excluindo `"raw"`/`"isLoading"`), eliminando a necessidade do
+  cast `as keyof typeof context`.

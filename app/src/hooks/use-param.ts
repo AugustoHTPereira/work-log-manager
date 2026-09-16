@@ -1,8 +1,10 @@
-import { ParamContext } from "@/components/ParamProvider";
+import { ParamContext, type ParamProviderType } from "@/components/ParamProvider";
 import { useContext } from "react";
 
+type ParamKey = Exclude<keyof ParamProviderType, "raw" | "isLoading">;
+
 export function useParam(
-  param: string,
+  param: ParamKey,
   defaultValue: string | boolean | number,
 ): {
   value: string | boolean | number | undefined;
@@ -13,7 +15,7 @@ export function useParam(
     throw new Error("useParam must be used within a ParamProvider");
   }
 
-  const value = context[param as keyof typeof context];
+  const value = context[param];
 
   return { value: value !== undefined ? value : defaultValue };
 }

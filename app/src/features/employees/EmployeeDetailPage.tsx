@@ -52,7 +52,6 @@ import {
 import { EmployeeWorkScheduleModal } from "./EmployeeWorkScheduleModal";
 import { useParam } from "@/hooks/use-param";
 import { formatDate } from "@/lib/date";
-import { intervalToDuration } from "date-fns";
 
 const workLogTypeLabels: Record<string, string> = {
   Overtime: "Hora extra",
