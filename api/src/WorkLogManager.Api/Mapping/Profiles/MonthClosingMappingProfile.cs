@@ -25,7 +25,9 @@ public class MonthClosingMappingProfile : Profile
 
         CreateMap<EmployeeWorkLogGenerationSummary, EmployeeWorkLogGenerationSummaryResponse>();
 
-        CreateMap<MonthClosing, MonthClosingResponse>();
+        // Listing only: the per-employee generation summaries exist just in the close-month result.
+        CreateMap<MonthClosing, MonthClosingResponse>()
+            .ForMember(dest => dest.Summaries, opt => opt.Ignore());
 
         CreateMap<MonthClosingDeletionResult, DeleteMonthClosingResponse>();
     }

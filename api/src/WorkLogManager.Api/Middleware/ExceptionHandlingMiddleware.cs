@@ -50,5 +50,26 @@ public class ExceptionHandlingMiddleware
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await context.Response.WriteAsJsonAsync(new { message = "Invalid request payload." });
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            _logger.LogInformation("Request aborted by the client.");
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unhandled exception on {Method} {Path}.", context.Request.Method, context.Request.Path);
+            if (context.Response.HasStarted)
+            {
+                throw;
+            }
+
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                message = exception.Message,
+                detail = exception.InnerException?.Message,
+                exceptionType = exception.GetType().FullName,
+                stackTrace = exception.StackTrace,
+            });
+        }
     }
 }

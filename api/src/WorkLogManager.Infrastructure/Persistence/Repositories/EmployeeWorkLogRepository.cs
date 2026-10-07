@@ -66,9 +66,10 @@ public class EmployeeWorkLogRepository : IEmployeeWorkLogRepository
             query = query.Where(w => w.Origin == origin);
         }
 
-        return await query
-            .OrderByDescending(w => w.StartDate)
-            .ToListAsync(cancellationToken);
+        // SQLite cannot translate ORDER BY over DateTimeOffset (nor UtcTicks), so the
+        // ordering is applied in memory on the already-filtered list.
+        var workLogs = await query.ToListAsync(cancellationToken);
+        return workLogs.OrderByDescending(w => w.StartDate.UtcTicks).ToList();
     }
 
     public async Task AddRangeAsync(IEnumerable<EmployeeWorkLog> workLogs, CancellationToken cancellationToken = default)

@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
+using Serilog;
 using WorkLogManager.Api.Endpoints;
 using WorkLogManager.Api.Mapping.Profiles;
 using WorkLogManager.Api.Middleware;
@@ -28,6 +29,19 @@ const string FrontendCorsPolicy = "FrontendCorsPolicy";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseWindowsService();
+
+// File logging. The path is absolute (the Windows service runs with System32 as working
+// directory); override it with the "Logging:FilePath" setting.
+var logFilePath = builder.Configuration["Logging:FilePath"]
+    ?? Path.Combine(AppContext.BaseDirectory, "logs", "worklogmanager-.log");
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.File(
+        logFilePath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        shared: true));
 
 builder.Services.AddOpenApi();
 
@@ -104,6 +118,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseSerilogRequestLogging();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
